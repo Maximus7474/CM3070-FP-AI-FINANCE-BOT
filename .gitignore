@@ -26,3 +26,4 @@ dist-ssr
 # project specific paths
 src-py/build/app
 src-py/app.spec
+src-tauri/binaries/
