@@ -1,9 +1,9 @@
 [package]
 name = "financial-advisor-app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-edition = "2021"
+description = "A Financial advisor that teaches you trading stocks"
+authors = ["Max Screawn"]
+edition = "2026"
 build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
