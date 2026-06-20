@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev:frontend": "vite",
+    "build:frontend": "vite build",
+    "build:sidecar": "cd src-py && ./build.bat",
     "preview": "vite preview",
     "tauri": "tauri"
   },

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.maxsc.financial-advisor-app",
   "build": {
-    "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeDevCommand": "bun run dev:frontend",
+    "beforeBuildCommand": "bun run build:sidecar && bun run build:frontend",
     "frontendDist": "../dist"
   },
   "app": {
