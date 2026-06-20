@@ -4,12 +4,26 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+# Decent config for production 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["tauri://localhost", "http://localhost:1420"],
+    allow_origins=[
+        "tauri://localhost",        # macOS/Linux production
+        "http://tauri.localhost",   # Windows production (WebView2)
+        "https://tauri.localhost",  # some WebView2 configs use https
+        "http://localhost:1420",    # dev server
+    ],
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
+# Prototyping middleware
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 SYSTEM_PROMPT = (
     "You are an educational financial literacy assistant. "
