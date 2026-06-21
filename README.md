@@ -1,5 +1,9 @@
 # Ai Financial Bot
 
+## Prototype 1
+
+- Handling an ollama LLM model locally
+
 A system built in providing recommendations for financial investments in stocks and markets powered by artificial intelligence systems.
 
 > [!WARNING]
