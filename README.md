@@ -4,6 +4,11 @@
 
 - Handling an ollama LLM model locally
 
+Used model:
+- Used model: [0xroyce/plutus](https://ollama.com/0xroyce/plutus)
+- License: [LLAMA 3.1](https://huggingface.co/meta-llama/Llama-3.1-70B-Instruct/blob/main/LICENSE)
+
+
 A system built in providing recommendations for financial investments in stocks and markets powered by artificial intelligence systems.
 
 > [!WARNING]
