@@ -151,6 +151,7 @@ was made, using ONLY the data provided to you in the user message.
 Rules:
 - Do not invent numbers or facts not present in the supplied data.
 - Be clear and concise; assume the user is not a finance expert.
+- Utilize the Technical Indicators provided (RSI, MACD Histogram, Bollinger Bands % or bb_pct) to explain the trading signals.
 - Always mention key risks or counterpoints, not just the bullish case.
 - Never present this as guaranteed financial advice.
 - If the supplied data is insufficient to justify the recommendation,
@@ -158,20 +159,26 @@ Rules:
 """
 
 
-def build_user_prompt(ticker: str, recommendation: str, data: dict) -> str:
+def build_user_prompt(allocation_data: dict, portfolio_context: dict) -> str:
     """ 
-    This function would be called from the core system after receiving data
-    from the RL agent, values listed here are placeholders and will differ
+    Formats technical metrics and overarching portfolio data for the LLM.
     """
-    data_block = json.dumps(data, indent=2)
-    return f"""Stock: {ticker}
-Recommendation: {recommendation}
+    combined_data = {
+        "ticker_metrics": allocation_data,
+        "portfolio_context": portfolio_context
+    }
+    
+    data_block = json.dumps(combined_data, indent=2)
+    
+    return f"""Stock: {allocation_data['ticker']}
+Recommendation: {allocation_data['action']}
 
-Supporting data:
+Supporting data and portfolio context:
 {data_block}
 
-Explain this recommendation to the user in plain language, referencing
-the specific data points above."""
+Explain this recommendation to the user in plain language, explicitly referencing 
+the technical indicator data points (like RSI, MACD history, or Bollinger Bands) and how they 
+justify the action within the overall portfolio budget strategy."""
 
 
 if __name__ == "__main__":
@@ -179,20 +186,34 @@ if __name__ == "__main__":
     client.start()
     client.ensure_model()
 
-    example_data = {
-        "pe_ratio": 18.4,
-        "sector_avg_pe": 24.1,
-        "revenue_growth_yoy": "12%",
-        "debt_to_equity": 0.35,
-        "analyst_consensus": "Buy",
-        "recent_news_sentiment": "Mixed: strong earnings beat, but supply chain concerns",
+    json_path = get_base_dir() / "recommendations.json"
+
+    if not json_path.exists():
+        print(f"Error: Could not find JSON file at: {json_path}")
+        sys.exit(1)
+
+    with open(json_path, "r") as f:
+        recommendations_data = json.load(f)
+
+    # extract global metrics to provide context to the agent
+    portfolio_context = {
+        "total_budget": recommendations_data.get("budget"),
+        "cash_remaining": recommendations_data.get("cash_remaining"),
+        "eval_period": recommendations_data.get("eval_period"),
+        "backtest_summary": recommendations_data.get("backtest_summary")
     }
 
-    user_prompt = build_user_prompt(
-        ticker="ACME",
-        recommendation="Buy",
-        data=example_data,
-    )
+    print("\n--- Generating Explanations from recommendations.json ---\n")
 
-    explanation = client.chat(SYSTEM_PROMPT, user_prompt)
-    print(explanation)
+    for allocation in recommendations_data.get("allocations", []):
+        ticker = allocation.get("ticker")
+        action = allocation.get("action")
+        
+        print(f"Processing explanation for {ticker} ({action})...")
+        
+        user_prompt = build_user_prompt(allocation, portfolio_context)
+        explanation = client.chat(SYSTEM_PROMPT, user_prompt)
+
+        print(f"\n=================== {ticker} ({action}) ===================")
+        print(explanation)
+        print("======================================================\n")
