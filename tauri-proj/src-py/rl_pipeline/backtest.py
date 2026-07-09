@@ -20,9 +20,9 @@ class RLStrategy(bt.Strategy):
     def _build_obs(self) -> np.ndarray | None:
         if self._bar < LOOKBACK:
             return None
-        
+
         windows = []
-        
+
         for t in self.p.tickers:
             w = self.p.feat[t][self._bar - LOOKBACK: self._bar]
             mn, mx = w.min(0, keepdims=True), w.max(0, keepdims=True)
@@ -33,7 +33,7 @@ class RLStrategy(bt.Strategy):
         total = self.broker.getvalue()
         wts = (shares * prices) / (total + 1e-9)
         cash_r = np.array([self.broker.getcash() / (total + 1e-9)], np.float32)
-        
+
         return np.concatenate(windows + [wts, cash_r]).astype(np.float32)
 
     def next(self):
@@ -41,22 +41,22 @@ class RLStrategy(bt.Strategy):
         if obs is None:
             self._bar += 1
             return
-        
+
         action, _ = self.p.model.predict(obs, deterministic=True)
         for i, ticker in enumerate(self.p.tickers):
             d = self._dmap.get(ticker)
-            
+
             if d is None: continue
-            
+
             a = float(action[i])
-            
+
             if a > 0.05:
                 self.order_target_percent(d, target=min(a, MAX_WEIGHT))
-                
+
             elif a < -0.05 and self.getposition(d).size > 0:
                 cur = self.getposition(d).size
                 self.order_target_size(d, target=max(cur * (1 + a), 0))
-                
+
         self._bar += 1
 
 class BuyAndHold(bt.Strategy):
@@ -66,7 +66,7 @@ class BuyAndHold(bt.Strategy):
         if not self._done:
             for d in self.datas:
                 self.order_target_percent(d, target=1.0 / len(self.datas))
-                
+
             self._done = True
 
 def run_backtest_suite(model, eval_data: dict, tickers: list, eval_feat: dict, eval_closes: dict):
@@ -77,13 +77,13 @@ def run_backtest_suite(model, eval_data: dict, tickers: list, eval_feat: dict, e
         c = bt.Cerebro(stdstats=False)
         c.broker.setcash(BUDGET)
         c.broker.setcommission(commission=COMMISSION)
-        
+
         for ticker, df in eval_data.items():
             ohlcv = df[["Open","High","Low","Close","Volume"]].copy()
             ohlcv.columns = ["open","high","low","close","volume"]
             ohlcv["openinterest"] = 0.0
             c.adddata(bt.feeds.PandasData(dataname=ohlcv, name=ticker))
-            
+
         c.addanalyzer(bt.analyzers.SharpeRatio, _name="sr", riskfreerate=0.05/252, annualize=True)
         c.addanalyzer(bt.analyzers.DrawDown, _name="dd")
         c.addanalyzer(bt.analyzers.TradeAnalyzer, _name="ta")
@@ -119,21 +119,21 @@ def extract_performance_data(rl_strat, bh_strat, rl_end, bh_end):
     bh_ret_pct = (bh_end - BUDGET) / BUDGET * 100
     vol_ann = np.array(list(tr_rl.values()), dtype=np.float64).std() * math.sqrt(252) * 100
 
-    # save equity curve graph
-    save_equity_curve(tr_rl, tr_bh)
+    # save equity curve graph (used in prototyping)
+    # save_equity_curve(tr_rl, tr_bh)
 
     return {
         # RL agent return metrics
         "rl_return_pct": rl_ret_pct,    # (%) total percentage return
         "rl_end_val": rl_end,           # ($) final portfolio dollar value
-        
+
         # Buy & Hold return metrics
         "bh_return_pct": bh_ret_pct,    # (%) total percentage return
         "bh_end_val": bh_end,           # ($) final portfolio dollar value
-        
-        "max_drawdown": dd,             # (%) worst peak-to-trough drop - biggest decline following a climb 
+
+        "max_drawdown": dd,             # (%) worst peak-to-trough drop - biggest decline following a climb
         "volatility": vol_ann,          # (%) annualized portfolio volatility (~risk) based on daily standard deviation
-        
+
         "sharpe": sr,                   #     sharpe ratio (risk-adjusted return metric; higher is better)
         "trades": n_trades,             #     total number of round-trip trades completed and closed by the agent
         "won": n_won,                   #     total number of completed trades that resulted in a positive financial profit
@@ -146,11 +146,11 @@ def save_equity_curve(tr_rl, tr_bh):
     """
     def to_eq(tr_dict):
         v, d_out, v_out = BUDGET, [], []
-        
+
         for d, r in sorted(tr_dict.items()):
             v *= (1 + r)
             d_out.append(d); v_out.append(v)
-            
+
         return d_out, v_out
 
     rl_d, rl_v = to_eq(tr_rl)

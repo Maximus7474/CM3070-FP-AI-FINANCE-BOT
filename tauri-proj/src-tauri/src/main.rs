@@ -10,8 +10,20 @@ fn main() {
 
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
-                    if let CommandEvent::Stdout(line) = event {
-                        println!("[python] {}", String::from_utf8_lossy(&line));
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            println!("[python out] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprintln!("[python err] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            println!(
+                                "[python sidecar] Exited unexpectedly with code: {:?}",
+                                payload.code
+                            );
+                        }
+                        _ => {}
                     }
                 }
             });
