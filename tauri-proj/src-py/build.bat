@@ -43,8 +43,17 @@ if errorlevel 1 (
     pip install pyinstaller
 )
 
-REM Build the Python executable
-pyinstaller --onefile --name app main.py --clean
+REM Verify that the spec file actually exists before building
+if not exist "app.spec" (
+    echo ERROR: app.spec not found! Please ensure your spec file is in this directory.
+    call .venv\Scripts\deactivate.bat
+    popd
+    exit /b 1
+)
+
+REM Build the Python executable using the spec file
+echo Building Python sidecar via PyInstaller spec file...
+pyinstaller --clean app.spec
 if errorlevel 1 (
     echo PyInstaller build failed.
     call .venv\Scripts\deactivate.bat
@@ -80,6 +89,6 @@ timeout /t 3 /nobreak >nul
 
 echo Done. Sidecar binary placed at ..\src-tauri\binaries\app-%HOST_TRIPLE%.exe
 
-call venv\Scripts\deactivate.bat
+call .venv\Scripts\deactivate.bat
 popd
 endlocal
