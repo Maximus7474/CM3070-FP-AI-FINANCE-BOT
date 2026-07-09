@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 import requests
 import json
 import os
@@ -9,6 +11,16 @@ from pathlib import Path
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_BASE = "http://localhost:11434"
 MODEL = "0xroyce/plutus"
+
+client = None
+
+def initialize_ollama() -> None:
+    global client
+    if client is None:
+        client = OllamaClient(default_model=MODEL)
+        client.start()
+        client.ensure_model()
+
 
 def get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -33,9 +45,9 @@ class OllamaClient:
     Configurable wrapper around a bundled Ollama instance.
     The use of a class based wrapper should allow us to also
     use external systems (i.e. paid LLMs such as Claude, ChatGPT).
-    
+
     Note:
-    We should be able to do all of this just with ollama I think. 
+    We should be able to do all of this just with ollama I think.
     """
 
     def __init__(self, default_model: str = MODEL, base_url: str = OLLAMA_BASE):
@@ -160,37 +172,45 @@ Rules:
 
 
 def build_user_prompt(allocation_data: dict, portfolio_context: dict) -> str:
-    """ 
+    """
     Formats technical metrics and overarching portfolio data for the LLM.
     """
     combined_data = {
         "ticker_metrics": allocation_data,
         "portfolio_context": portfolio_context
     }
-    
+
     data_block = json.dumps(combined_data, indent=2)
-    
+
     return f"""Stock: {allocation_data['ticker']}
 Recommendation: {allocation_data['action']}
 
 Supporting data and portfolio context:
 {data_block}
 
-Explain this recommendation to the user in plain language, explicitly referencing 
-the technical indicator data points (like RSI, MACD history, or Bollinger Bands) and how they 
+Explain this recommendation to the user in plain language, explicitly referencing
+the technical indicator data points (like RSI, MACD history, or Bollinger Bands) and how they
 justify the action within the overall portfolio budget strategy."""
 
+class Explanation:
+    def __init__(self, ticker: str, action: str, justification: str):
+        self.ticker = ticker
+        self.action = action
+        self.justification = justification
 
-if __name__ == "__main__":
-    client = OllamaClient(default_model=MODEL)
-    client.start()
-    client.ensure_model()
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "ticker": self.ticker,
+            "action": self.action,
+            "justification": self.justification,
+        }
 
-    json_path = get_base_dir() / "recommendations.json"
+def generate_explanation(file_name: str) -> List[Explanation]:
+    json_path = Path(f"D:/Development/Projects/School/CM3070-FP-AI-FINANCE-BOT/tauri-proj/src-py/{file_name}")
 
     if not json_path.exists():
         print(f"Error: Could not find JSON file at: {json_path}")
-        sys.exit(1)
+        return []
 
     with open(json_path, "r") as f:
         recommendations_data = json.load(f)
@@ -203,17 +223,19 @@ if __name__ == "__main__":
         "backtest_summary": recommendations_data.get("backtest_summary")
     }
 
-    print("\n--- Generating Explanations from recommendations.json ---\n")
+    print(f"\n--- Generating Explanations from {file_name} ---\n")
+
+    response = []
 
     for allocation in recommendations_data.get("allocations", []):
         ticker = allocation.get("ticker")
         action = allocation.get("action")
-        
+
         print(f"Processing explanation for {ticker} ({action})...")
-        
+
         user_prompt = build_user_prompt(allocation, portfolio_context)
         explanation = client.chat(SYSTEM_PROMPT, user_prompt)
 
-        print(f"\n=================== {ticker} ({action}) ===================")
-        print(explanation)
-        print("======================================================\n")
+        response.append(Explanation(ticker, action, explanation).to_dict())
+
+    return response
