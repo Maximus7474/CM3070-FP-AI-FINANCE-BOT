@@ -1,5 +1,6 @@
-from pathlib import Path
 import warnings
+
+from utils.path import StorageManager
 
 warnings.filterwarnings("ignore")
 
@@ -24,7 +25,7 @@ FEATURE_COLS = ["Close", "rsi", "macd_hist", "bb_pct", "atr"]
 N_FEAT = len(FEATURE_COLS)
 
 # putput paths
-OUTPUT_DIR = Path("output")
+OUTPUT_DIR = StorageManager.get_path("output")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Source - https://stackoverflow.com/a/287944
