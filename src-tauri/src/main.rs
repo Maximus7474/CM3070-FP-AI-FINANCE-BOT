@@ -5,7 +5,17 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            let sidecar = app.shell().sidecar("app").unwrap();
+            //get / create appdata directory for temporary files (AppData for windows)
+            let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+            let data_dir_str = app_data_dir.to_str().unwrap();
+
+            let sidecar = app
+                .shell()
+                .sidecar("app")
+                .unwrap()
+                .arg("--data-dir")
+                .arg(data_dir_str);
             let (mut rx, _child) = sidecar.spawn().expect("failed to spawn python sidecar");
 
             tauri::async_runtime::spawn(async move {
