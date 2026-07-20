@@ -65,10 +65,10 @@ def generate_reply(message: str) -> str:
         return "Failed to generate explanation list"
 
     for e in explanation_list:
-        print(f"{e['ticker']}: {e['action']} ({e['justification']})")
+        print(f"{e.ticker}: {e.action} ({e.justification})")
 
     formatted_reply = "\n\n".join(
-        f"**{e['ticker']}** ({e['action']}): {e['justification']}"
+        f"**{e.ticker}** ({e.action}): {e.justification}"
         for e in explanation_list
     )
 
