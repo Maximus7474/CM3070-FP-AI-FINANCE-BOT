@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 
-from rl_pipeline.data import download_market_data, save_diagnostic_chart
+from rl_pipeline.data import download_market_data
 from rl_pipeline.environment import TradingEnv
 from rl_pipeline.rl_agent import train_ppo_agent
 from rl_pipeline.backtest import run_backtest_suite
