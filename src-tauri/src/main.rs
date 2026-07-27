@@ -11,33 +11,48 @@ fn main() {
             std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
             let data_dir_str = app_data_dir.to_str().unwrap();
 
-            let sidecar = app
-                .shell()
-                .sidecar("app")
-                .unwrap()
-                .arg("--data-dir")
-                .arg(data_dir_str);
-            let (mut rx, _child) = sidecar.spawn().expect("failed to spawn python sidecar");
+            #[cfg(dev)]
+            {
+                println!("\n=== DEVELOPMENT MODE ===");
+                println!("App Data Directory: {}", data_dir_str);
+                println!("Python sidecar skipped. Please start it manually:\n");
+                println!("1. cd src-py");
+                println!("2. .venv\\Scripts\\activate");
+                println!("3. python main.py --data-dir=\"{}\"\n", data_dir_str);
+                println!("========================\n");
+            }
 
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => {
-                            println!("[python out] {}", String::from_utf8_lossy(&line));
+            #[cfg(not(dev))]
+            {
+                let sidecar = app
+                    .shell()
+                    .sidecar("app")
+                    .unwrap()
+                    .arg("--data-dir")
+                    .arg(data_dir_str);
+
+                let (mut rx, _child) = sidecar.spawn().expect("failed to spawn python sidecar");
+
+                tauri::async_runtime::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            CommandEvent::Stdout(line) => {
+                                println!("[python out] {}", String::from_utf8_lossy(&line));
+                            }
+                            CommandEvent::Stderr(line) => {
+                                eprintln!("[python err] {}", String::from_utf8_lossy(&line));
+                            }
+                            CommandEvent::Terminated(payload) => {
+                                println!(
+                                    "[python sidecar] Exited unexpectedly with code: {:?}",
+                                    payload.code
+                                );
+                            }
+                            _ => {}
                         }
-                        CommandEvent::Stderr(line) => {
-                            eprintln!("[python err] {}", String::from_utf8_lossy(&line));
-                        }
-                        CommandEvent::Terminated(payload) => {
-                            println!(
-                                "[python sidecar] Exited unexpectedly with code: {:?}",
-                                payload.code
-                            );
-                        }
-                        _ => {}
                     }
-                }
-            });
+                });
+            }
 
             Ok(())
         })
