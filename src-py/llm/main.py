@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import requests
 import json
 import os
@@ -7,6 +5,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Dict, List, Any, Tuple
+
+from config import OUTPUT_DIR
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_BASE = "http://localhost:11434"
@@ -205,15 +206,34 @@ class Explanation:
             "justification": self.justification,
         }
 
-def generate_explanation(file_name: str) -> List[Explanation]:
-    json_path = Path(f"D:/Development/Projects/School/CM3070-FP-AI-FINANCE-BOT/tauri-proj/src-py/{file_name}")
+class Recommendation:
+    def __init__(self, budget: int, cash_remaining: int, eval_period: int, backtest_summary: Dict[str, int], allocations: List[Explanation]):
+        self.budget = budget
+        self.cash_remaining = cash_remaining
+        self.eval_period = eval_period
+        self.backtest_summary = backtest_summary
+        self.allocations = allocations
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "budget": self.budget,
+            "cash_remaining": self.cash_remaining,
+            "eval_period": self.eval_period,
+            "backtest_summary": self.backtest_summary,
+            "allocations": [alloc.to_dict() for alloc in self.allocations],
+        }
+
+def generate_explanation(file_name: str) -> Recommendation:
+    json_path = OUTPUT_DIR / file_name
 
     if not json_path.exists():
-        print(f"Error: Could not find JSON file at: {json_path}")
-        return []
+        raise FileNotFoundError(f"Error: Could not find JSON file at: {json_path}")
+
+    if not client:
+        raise ValueError("Error: ollama client is not initialized")
 
     with open(json_path, "r") as f:
-        recommendations_data = json.load(f)
+        recommendations_data = json.load(f) # as JsonRecommendation
 
     # extract global metrics to provide context to the agent
     portfolio_context = {
@@ -236,6 +256,9 @@ def generate_explanation(file_name: str) -> List[Explanation]:
         user_prompt = build_user_prompt(allocation, portfolio_context)
         explanation = client.chat(SYSTEM_PROMPT, user_prompt)
 
-        response.append(Explanation(ticker, action, explanation).to_dict())
+        response.append(Explanation(ticker, action, explanation))
 
-    return response
+    data = recommendations_data.copy()
+    data["allocations"] = response
+
+    return Recommendation(**data)

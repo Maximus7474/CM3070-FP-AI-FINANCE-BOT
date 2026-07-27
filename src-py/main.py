@@ -59,17 +59,17 @@ class EvaluateResponse(BaseModel):
 
 def generate_reply(message: str) -> str:
     print(f"Received message: {message} - generating recommendation text")
-    explanation_list = generate_explanation("recommendations.json")
+    data = generate_explanation("recommendations.json")
 
-    if len(explanation_list) == 0:
+    if len(data.allocations) == 0:
         return "Failed to generate explanation list"
 
-    for e in explanation_list:
+    for e in data.allocations:
         print(f"{e.ticker}: {e.action} ({e.justification})")
 
     formatted_reply = "\n\n".join(
         f"**{e.ticker}** ({e.action}): {e.justification}"
-        for e in explanation_list
+        for e in data.allocations
     )
 
     return formatted_reply

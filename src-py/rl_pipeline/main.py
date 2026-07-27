@@ -1,7 +1,7 @@
 import json
-from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
+from stable_baselines3 import PPO
 
 from rl_pipeline.data import download_market_data
 from rl_pipeline.environment import TradingEnv
@@ -10,11 +10,17 @@ from rl_pipeline.backtest import run_backtest_suite
 
 from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
 
-@dataclass
 class Allocation:
     ticker: str; action: str; price: float; shares: float
     dollar_value: float; pct_of_budget: float
     rsi: float; macd_hist: float; bb_pct: float
+
+class JsonRecommendation:
+    budget: int;
+    cash_remaining: int;
+    eval_period: str;
+    backtest_summary: dict;
+    allocations: list[Allocation];
 
 def _calculate_allocations(model, eval_data: dict, tickers: list, budget: float) -> list[Allocation]:
     """
@@ -153,8 +159,7 @@ def load_trained_model(model_name: str = "ppo_trading_model"):
     """
     model_path = OUTPUT_DIR / model_name
     # Uncomment and use your specific library's load function
-    # return PPO.load(str(model_path))
-    pass
+    return PPO.load(str(model_path))
 
 def main():
     """
