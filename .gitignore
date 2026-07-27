@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 
 # project specific paths
+__pycache__
 src-py/build/app
-src-py/app.spec
 src-tauri/binaries/
+src/models/
+src/recommendation.json

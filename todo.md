@@ -1,0 +1,3 @@
+- [ ] resolve temp-file saving issue (i.e. model.zip)
+  - For ppo-trading-model.zip and recommendations.json
+  - Have a system that excepts them from the project and allows the python script to access them
