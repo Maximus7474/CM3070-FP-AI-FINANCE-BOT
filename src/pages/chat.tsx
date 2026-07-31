@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 
 interface Message {
@@ -35,54 +36,101 @@ export default function Chat() {
         body: JSON.stringify({ message: userMessage.content }),
       });
       const data = await res.json();
-      addMessage({ role: "assistant", content: data.reply, timestamp: new Date().toISOString() });
+      addMessage({
+        role: "assistant",
+        content: data.reply,
+        timestamp: new Date().toISOString(),
+      });
     } catch (e) {
       console.error("Chat request failed:", e);
-      addMessage({ role: "system", content: "Error: Failed to connect to the chat endpoint.", timestamp: new Date().toISOString() });
+      addMessage({
+        role: "system",
+        content: "Error: Failed to connect to the chat endpoint.",
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       setLoading(false);
     }
   }
 
-  const getMessageStyles = (role: string) => {
-    switch (role) {
-      case "user": return { bg: "#0070f3", color: "#fff", align: "right" };
-      case "system": return { bg: "#fff3cd", color: "#856404", align: "center", border: "1px solid #ffeeba" };
-      default: return { bg: "#f0f0f0", color: "#000", align: "left" };
-    }
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 20, boxSizing: "border-box" }}>
-      <div style={{ flex: 1, overflowY: "auto", marginBottom: 12, paddingRight: 10 }}>
-        {messages.length === 0 && <p style={{ color: "#888", textAlign: "center", marginTop: 40 }}>Start a conversation with the LLM.</p>}
-        {messages.map((msg, i) => {
-          const styles = getMessageStyles(msg.role);
-          return (
-            <div key={i} style={{ marginBottom: 12, textAlign: styles.align as any }}>
-              <span style={{ display: "inline-block", background: styles.bg, color: styles.color, border: msg.role === "system" ? styles.border : "none", padding: "8px 12px", borderRadius: 8, maxWidth: msg.role === "system" ? "90%" : "75%", whiteSpace: "pre-wrap", textAlign: "left" }}>
-                {msg.content}
-              </span>
-              <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{new Date(msg.timestamp).toLocaleTimeString()}</div>
-            </div>
-          );
-        })}
-        {loading && <p style={{ color: "#888", fontStyle: "italic" }}>Working...</p>}
+    <div className="flex flex-col h-full box-border w-full">
+      <div className="flex-1 overflow-y-auto mb-3 pr-2 space-y-3">
+        {messages.length === 0 && (
+          <div className="text-center text-muted-foreground mt-10 text-sm">
+            Start a conversation with the LLM.
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            className={`flex flex-col ${
+              msg.role === "user"
+                ? "items-end"
+                : msg.role === "system"
+                ? "items-center"
+                : "items-start"
+            }`}
+          >
+            <span
+              className={`inline-block px-3 py-2 rounded-lg text-sm whitespace-pre-wrap max-w-[85%] md:max-w-[75%] ${
+                msg.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : msg.role === "system"
+                  ? "bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {msg.content}
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-1 px-1">
+              {new Date(msg.timestamp).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="text-sm text-muted-foreground italic animate-pulse">
+            Working...
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+
+      <div className="flex gap-2 items-end border-t pt-3">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
           placeholder="Type your message..."
           rows={3}
-          style={{ flex: 1, padding: 8, resize: "none", borderRadius: 4, border: "1px solid #ccc" }}
           disabled={loading}
+          className="flex-1 p-2.5 text-sm rounded-md border border-input bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button onClick={send} disabled={loading || !input.trim()} style={{ padding: "10px 20px", cursor: (loading || !input.trim()) ? "not-allowed" : "pointer", backgroundColor: "#0070f3", color: "white", border: "none", borderRadius: 4, flex: 1 }}>Send</button>
-          <button onClick={() => setMessages([])} style={{ fontSize: 12, color: "#888", background: "none", border: "1px solid #ccc", padding: "4px", borderRadius: 4, cursor: "pointer" }}>Clear</button>
+        <div className="flex flex-col gap-1.5 h-full">
+          <Button
+            onClick={send}
+            disabled={loading || !input.trim()}
+            className="flex-1 w-18 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Send
+          </Button>
+          <Button
+            onClick={() => setMessages([])}
+            variant="outline"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </Button>
         </div>
       </div>
     </div>
