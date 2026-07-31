@@ -1,38 +1,38 @@
-import { Routes, Route, Link, useLocation } from "react-router-dom";
-import Chat from "./pages/chat";
-import Evaluation from "./pages/eval";
-import Settings from "./pages/settings";
+import { Routes, Route } from "react-router-dom";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+import pages from "./pages";
 
-function App() {
-  const location = useLocation();
+import './App.css';
 
-  const getNavStyle = (path: string) => ({
-    padding: "10px 15px",
-    textDecoration: "none",
-    color: location.pathname === path ? "#0070f3" : "#666",
-    fontWeight: location.pathname === path ? "bold" : "normal",
-    borderBottom: location.pathname === path ? "2px solid #0070f3" : "none",
-  });
-
+export default function App() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: "800px", margin: "0 auto", boxSizing: "border-box" }}>
-      {/* Navigation Bar */}
-      <nav style={{ display: "flex", gap: 15, padding: "15px 20px", borderBottom: "1px solid #ddd" }}>
-        <Link to="/" style={getNavStyle("/")}>Chat</Link>
-        <Link to="/evaluation" style={getNavStyle("/evaluation")}>Evaluation</Link>
-        <Link to="/settings" style={getNavStyle("/settings")}>Settings</Link>
-      </nav>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
 
-      {/* Page Content */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        <Routes>
-          <Route path="/" element={<Chat />} />
-          <Route path="/evaluation" element={<Evaluation />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </div>
-    </div>
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="@container/main flex flex-1 flex-col p-4 md:p-6">
+            <Routes>
+              {pages.map(({ url, page }) => (
+                <Route key={url} path={url} element={page} />
+              ))}
+            </Routes>
+          </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
-
-export default App;
