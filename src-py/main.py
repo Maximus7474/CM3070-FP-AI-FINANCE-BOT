@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import traceback
 
-from llm.main import generate_explanation, initialize_ollama
+from llm.main import generate_explanation, initialize_ollama, handle_chat_interaction
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
 from config import TICKERS
 
@@ -57,7 +57,8 @@ class EvaluateResponse(BaseModel):
     status: str
     json_path: str
 
-def generate_reply(message: str) -> str:
+# ToDo: integrate into a new page for handlign recommendations
+def generate_recommendation(message: str) -> str:
     print(f"Received message: {message} - generating recommendation text")
     data = generate_explanation("recommendations.json")
 
@@ -81,7 +82,7 @@ def health():
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     print('Received chat request', req.message)
-    reply = generate_reply(req.message)
+    reply = handle_chat_interaction(req.message)
     return ChatResponse(reply=reply)
 
 @app.post("/train", response_model=TrainResponse)
