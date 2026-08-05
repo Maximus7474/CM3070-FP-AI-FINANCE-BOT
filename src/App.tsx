@@ -23,8 +23,8 @@ export default function App() {
 
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="@container/main flex flex-1 flex-col p-4 md:p-6">
+        <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+          <div className="@container/main flex flex-1 flex-col p-4 md:p-6 overflow-hidden min-h-0">
             <Routes>
               {pages.map(({ url, page }) => (
                 <Route key={url} path={url} element={page} />
