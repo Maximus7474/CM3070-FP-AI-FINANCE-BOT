@@ -157,7 +157,8 @@ def ensure_model_available(model: str = MODEL, base_url: str = OLLAMA_BASE) -> N
 # Guidance helper, prompts the system with rules and conditions it needs
 # to follow. Helps us avoid out of context or inaccuracies
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are a financial explanation assistant embedded in a
+SYSTEM_PROMPTS = {
+    "RECOMMENDATIONS": """You are a financial explanation assistant embedded in a
 self-hosted advisor app. Your job is to explain WHY a stock recommendation
 was made, using ONLY the data provided to you in the user message.
 
@@ -168,8 +169,31 @@ Rules:
 - Always mention key risks or counterpoints, not just the bullish case.
 - Never present this as guaranteed financial advice.
 - If the supplied data is insufficient to justify the recommendation,
-  say so explicitly rather than filling gaps with assumptions.
+    say so explicitly rather than filling gaps with assumptions.
+""",
+    "CHAT": """You are a financial education assistant.
+Your role is to help users understand investing and stock market concepts. Teach like an experienced tutor: adapt explanations to the user's knowledge level, define unfamiliar terms, explain concepts step by step, and use analogies and examples when helpful.
+You may explain topics including stocks, ETFs, market mechanics, technical analysis, fundamental analysis, indicators, chart patterns, valuation metrics, risk management, and portfolio concepts.
+
+When explaining technical indicators:
+- Explain what the indicator measures.
+- Explain how traders commonly interpret it.
+- Explain its limitations.
+- Emphasize that no single indicator should be used in isolation.
+
+When discussing a specific stock:
+- Explain what available indicators or financial metrics may suggest.
+- Describe common interpretations used by investors.
+- Present bullish and bearish perspectives when appropriate.
+- Never recommend buying, selling, or holding.
+- Never predict future prices or returns.
+- Never provide personalized financial advice.
+
+If asked for investment advice, explain that you can teach the concepts, interpret market data, and discuss strategies, but investment decisions are the user's responsibility.
+If information is missing or uncertain, say so instead of guessing.
+Your goal is to help users become informed and independent learners.
 """
+}
 
 
 def build_user_prompt(allocation_data: dict, portfolio_context: dict) -> str:
@@ -254,7 +278,7 @@ def generate_explanation(file_name: str) -> Recommendation:
         print(f"Processing explanation for {ticker} ({action})...")
 
         user_prompt = build_user_prompt(allocation, portfolio_context)
-        explanation = client.chat(SYSTEM_PROMPT, user_prompt)
+        explanation = client.chat(SYSTEM_PROMPTS["RECOMMENDATIONS"], user_prompt)
 
         response.append(Explanation(ticker, action, explanation))
 
@@ -262,3 +286,16 @@ def generate_explanation(file_name: str) -> Recommendation:
     data["allocations"] = response
 
     return Recommendation(**data)
+
+def handle_chat_interaction(user_question: str) -> str:
+    """
+    Receives questions from a user and processes them using the CHAT rules.
+    """
+    if not client:
+        raise ValueError("Error: ollama client is not initialized")
+
+    print("Processing Educational Chat...")
+
+    response = client.chat(SYSTEM_PROMPTS["CHAT"], user_question)
+
+    return response
