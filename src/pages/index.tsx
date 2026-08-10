@@ -24,6 +24,7 @@ export default [
     page: (
       <Chat />
     ),
+    expandable: true,
   },
   {
     title: "Evaluate",
