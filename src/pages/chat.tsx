@@ -1,76 +1,64 @@
 import { Button } from "@/components/ui/button";
+ import { useConversation } from "@/hooks/use-conversation";
 import { useState, useEffect, useRef } from "react";
-
-interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: string;
-}
+import { useSearchParams } from "react-router-dom";
 
 const API_BASE_URL = "http://127.0.0.1:8721";
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const [searchParams] = useSearchParams();
+  const { messages, loading: historyLoading, appendMessage } = useConversation(searchParams.get("channel") ?? "general");
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (msg: Message) => setMessages((prev) => [...prev, msg]);
-
   async function send() {
-    if (!input.trim() || loading) return;
-
-    const userMessage: Message = { role: "user", content: input.trim(), timestamp: new Date().toISOString() };
-    addMessage(userMessage);
+    if (!input.trim() || sending) return;
+    const text = input.trim();
     setInput("");
-    setLoading(true);
+    setSending(true);
+
+    await appendMessage("user", text);
 
     try {
+      const history = messages.slice(-10).map(({ role, content }) => ({ role, content }));
       const res = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({ message: text, history }),
       });
       const data = await res.json();
-      addMessage({
-        role: "assistant",
-        content: data.reply,
-        timestamp: new Date().toISOString(),
-      });
+      await appendMessage("assistant", data.reply);
     } catch (e) {
       console.error("Chat request failed:", e);
-      addMessage({
-        role: "system",
-        content: "Error: Failed to connect to the chat endpoint.",
-        timestamp: new Date().toISOString(),
-      });
+      await appendMessage("system", "Error: Failed to connect to the chat endpoint.");
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   }
 
   return (
     <div className="flex flex-col h-full box-border w-full">
       <div className="flex-1 overflow-y-auto mb-3 pr-2 space-y-3">
-        {messages.length === 0 && (
+        {historyLoading && (
+          <div className="text-center text-muted-foreground mt-10 text-sm">Loading history...</div>
+        )}
+        {!historyLoading && messages.length === 0 && (
           <div className="text-center text-muted-foreground mt-10 text-sm">
             Start a conversation with the LLM.
           </div>
         )}
 
-        {messages.map((msg, i) => (
+        {messages.map((msg) => (
           <div
-            key={i}
+            key={msg.id}
             className={`flex flex-col ${
-              msg.role === "user"
-                ? "items-end"
-                : msg.role === "system"
-                ? "items-center"
-                : "items-start"
+              msg.role === "user" ? "items-end" : msg.role === "system" ? "items-center" : "items-start"
             }`}
           >
             <span
@@ -85,19 +73,12 @@ export default function Chat() {
               {msg.content}
             </span>
             <span className="text-[10px] text-muted-foreground mt-1 px-1">
-              {new Date(msg.timestamp).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
         ))}
 
-        {loading && (
-          <div className="text-sm text-muted-foreground italic animate-pulse">
-            Working...
-          </div>
-        )}
+        {sending && <div className="text-sm text-muted-foreground italic animate-pulse">Working...</div>}
         <div ref={bottomRef} />
       </div>
 
@@ -113,23 +94,12 @@ export default function Chat() {
           }}
           placeholder="Type your message..."
           rows={3}
-          disabled={loading}
+          disabled={sending}
           className="flex-1 p-2.5 text-sm rounded-md border border-input bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         />
         <div className="flex flex-col gap-1.5 h-full">
-          <Button
-            onClick={send}
-            disabled={loading || !input.trim()}
-            className="flex-1 w-18 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={send} disabled={sending || !input.trim()} className="flex-1 w-18 disabled:opacity-50 disabled:cursor-not-allowed">
             Send
-          </Button>
-          <Button
-            onClick={() => setMessages([])}
-            variant="outline"
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Clear
           </Button>
         </div>
       </div>
