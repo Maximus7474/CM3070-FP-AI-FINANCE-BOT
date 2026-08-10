@@ -21,7 +21,7 @@ export default function App() {
     >
       <AppSidebar variant="inset" />
 
-      <SidebarInset>
+      <SidebarInset className="h-[calc(100svh-1rem)]">
         <SiteHeader />
         <div className="flex flex-1 flex-col overflow-hidden min-h-0">
           <div className="@container/main flex flex-1 flex-col p-4 md:p-6 overflow-hidden min-h-0">
