@@ -1,0 +1,118 @@
+﻿Create a concise `PROJECT_SPEC.md` describing the existing architecture of the supplied project.
+
+The document will be used as context for another LLM that needs to understand the project before answering questions about its code or suggesting changes.
+
+Do not perform a code review. Do not suggest improvements, identify missing features, or criticize the architecture. Describe what exists.
+
+## Project Architecture
+
+The project has three main components:
+
+* React frontend
+* Tauri/Rust desktop backend
+* Python AI/RL sidecar
+
+Important architectural fact:
+
+* Tauri starts and manages the Python sidecar.
+* React communicates directly with the Python sidecar.
+* React does not normally communicate with Python through Tauri/Rust.
+* Document any exceptions only if they are present in the source.
+
+## Describe
+
+### 1. Project Overview
+
+Briefly explain what the application does and the role of each major component.
+
+### 2. Project Structure
+
+Give a high-level overview of the important directories and modules.
+
+Do not list every file. Focus on modules that define application structure, communication, business logic, AI/RL logic, data handling, or configuration.
+
+### 3. Runtime Flow
+
+Describe the normal application lifecycle:
+
+* How Tauri starts.
+* How the Python sidecar is started.
+* How React starts.
+* How React connects to Python.
+* How requests/data flow through the system.
+* How responses return to React.
+* How the application shuts down, if this can be determined.
+
+### 4. Module Responsibilities
+
+Describe the responsibilities and important components of:
+
+* React
+* Tauri/Rust
+* Python
+
+For Python, describe the important AI/RL components and how they relate to the rest of the Python application.
+
+### 5. Communication
+
+Describe the actual communication between the modules.
+
+For each important communication path, identify:
+
+* Source
+* Destination
+* Protocol/transport
+* Important endpoints, messages, commands, or interfaces
+* Important request/response data
+
+Use simple ASCII diagrams where useful.
+
+### 6. Data Flow
+
+Describe the important data flows between React, Python, AI/RL components, and persistence.
+
+Focus on data crossing module boundaries rather than internal implementation details.
+
+### 7. Important Interfaces
+
+List the classes, functions, APIs, models, or configuration values that form important boundaries between modules.
+
+Do not list every class or function.
+
+### 8. Configuration
+
+Briefly describe relevant environment variables, ports, configuration files, model configuration, and sidecar configuration.
+
+Do not include secret values.
+
+## LLM Working Context
+
+End with a section named `LLM Working Context`.
+
+Make this a compact, information-dense summary that another LLM can use without reading the rest of the document.
+
+Include:
+
+* What the application does.
+* The three main components and their responsibilities.
+* How the application starts.
+* How React and Python communicate.
+* What Tauri does and does not do.
+* Where the main application logic lives.
+* Where the AI/RL logic lives.
+* The most important interfaces and data flows.
+* Important architectural facts that must be preserved when modifying the project.
+
+## Rules
+
+* Base all information on the supplied source.
+* Do not invent APIs, dependencies, behavior, or architecture.
+* If something cannot be determined, write `Unknown`.
+* Prefer concise descriptions over exhaustive documentation.
+* Focus on structure, responsibilities, communication, and data flow.
+* Do not provide recommendations or architectural criticism.
+* Use Markdown.
+* Use plain ASCII where possible.
+* Do not use emoji or decorative symbols.
+
+The goal is a high-level map of the existing project, not a code review.
