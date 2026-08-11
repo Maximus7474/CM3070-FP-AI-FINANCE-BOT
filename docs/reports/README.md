@@ -20,3 +20,4 @@ The models run locally. No source code is intentionally sent to an external AI s
 
 - `source/`: uses [Repomix](https://github.com/yamadashy/repomix) to combine all files into one markdown file to use as context
 - `structure/`: uses the [`project-source.md`](./source/project-source.md) to generate an objective report on the project architecture and systems
+- `risk/`: uses the [`project-source.md`](./source/project-source.md) to generate an objective report on risks on security and stability of the project

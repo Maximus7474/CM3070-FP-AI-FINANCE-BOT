@@ -1,0 +1,223 @@
+Create a concise `SECURITY_ISSUE_REPORT.md` identifying potential security issues, privacy risks, reliability concerns, and implementation defects in the supplied project.
+
+The document is an advisory review for a human developer. It must identify and explain evidence-based concerns in the existing source code. It must not modify files, generate commits, apply patches, or produce replacement source code.
+
+## Project Architecture
+
+The project has three main components:
+
+* React frontend
+* Tauri/Rust desktop backend
+* Python AI/RL sidecar
+
+Important architectural fact:
+
+* Tauri starts and manages the Python sidecar.
+* React communicates directly with the Python sidecar.
+* React does not normally communicate with Python through Tauri/Rust.
+* Document exceptions only if they are present in the source.
+
+## Review Objectives
+
+Look for observable issues in the supplied source, configuration, dependencies, and communication paths.
+
+Review the following areas where applicable:
+
+* Input validation and sanitisation.
+* Authentication, authorisation, and trust boundaries.
+* Network exposure, ports, listeners, and cross-origin behaviour.
+* React-to-Python communication.
+* Tauri sidecar process management.
+* Unsafe command, file, subprocess, or path handling.
+* Secrets, credentials, tokens, and sensitive configuration.
+* Sensitive data in logs, error messages, reports, or persisted files.
+* Dependency and package-management risks.
+* Unsafe deserialisation or insufficient schema validation.
+* Injection risks, including command, SQL, path, template, prompt, or code injection.
+* Incorrect access control between frontend, backend, sidecar, and persistence.
+* Python API and endpoint validation.
+* Model loading, model files, serialized objects, and untrusted inputs.
+* AI/RL-specific risks, including unsafe actions, reward manipulation,
+  untrusted observations, data leakage, or uncontrolled model behaviour.
+* Financial-data integrity, stale data, malformed data, and unexpected values.
+* Error handling, failure recovery, resource exhaustion, and denial-of-service risks.
+* Temporary files, caches, exported reports, and local data protection.
+* Race conditions or lifecycle issues involving the Tauri process and Python sidecar.
+* Issues that could cause incorrect, unsafe, or misleading application behaviour.
+
+Do not assume that a possible weakness is exploitable. Distinguish clearly between
+confirmed observations, plausible risks, and items that require further
+verification.
+
+## Review Method
+
+Base every finding on the supplied source and configuration.
+
+For each finding:
+
+1. Locate the relevant file, module, class, function, endpoint, configuration
+   value, or data flow.
+2. Explain what the code currently does.
+3. Explain why it may create a security, privacy, reliability, correctness, or
+   operational risk.
+4. Describe the possible impact without exaggerating it.
+5. State what additional information or testing would be needed to confirm the
+   issue, where applicable.
+
+Do not infer behaviour that cannot be supported by the source. If an area cannot
+be assessed, write `Unknown` or state that no evidence was found.
+
+Do not report a generic best practice as a project issue unless it is connected
+to a specific observable implementation detail.
+
+## Finding Format
+
+Begin with a short review scope and limitations section.
+
+Then provide a findings table with these columns:
+
+| ID | Severity | Category | Confidence | Component | Location | Summary |
+|----|----------|----------|------------|-----------|----------|---------|
+
+Use the following severity levels:
+
+* Critical: likely to cause severe compromise, major data exposure, or complete
+  loss of control.
+* High: significant compromise, unauthorised access, sensitive-data exposure,
+  or serious integrity impact.
+* Medium: meaningful but limited security, privacy, reliability, or integrity
+  impact.
+* Low: limited impact, defence-in-depth concern, or minor operational risk.
+* Informational: noteworthy behaviour or limitation without a demonstrated
+  security impact.
+
+Use confidence levels:
+
+* Confirmed: directly demonstrated by the supplied source.
+* Likely: strongly supported by the source but dependent on runtime conditions.
+* Possible: plausible concern requiring additional verification.
+* Not established: considered but not supported by sufficient evidence.
+
+After the table, describe each finding using this structure:
+
+## [ID] [Short finding title]
+
+- Severity:
+- Confidence:
+- Category:
+- Component:
+- Location:
+- Evidence:
+- Current behaviour:
+- Potential impact:
+- Conditions required:
+- Verification:
+- Suggested mitigation direction:
+
+The `Location` field should include file paths and relevant symbols or line
+ranges when available.
+
+The `Evidence` field must describe the relevant source without reproducing
+unnecessary amounts of code.
+
+The `Suggested mitigation direction` field must remain high-level. Do not write
+patches, replacement functions, complete code blocks, commands that alter the
+project, or commit instructions.
+
+If no issue is identified for a category, do not create a speculative finding.
+You may state that no evidence was identified during the review.
+
+## Communication and Data-Flow Review
+
+Pay particular attention to the following boundaries:
+
+```text
+React frontend
+    |
+    | direct communication
+    v
+Python AI/RL sidecar
+
+Tauri/Rust backend
+    |
+    | starts, monitors, and manages
+    v
+Python AI/RL sidecar
+```
+
+For each important boundary, assess only what can be established from the source:
+
+* How the connection is created.
+* Which host, port, socket, or transport is used.
+* Whether messages are validated.
+* Whether the endpoint is authenticated or otherwise restricted.
+* Whether arbitrary commands, paths, files, or model inputs can cross the
+  boundary.
+* How errors and malformed requests are handled.
+* Whether the sidecar lifecycle creates race conditions or exposed services.
+* Whether sensitive information crosses the boundary or is written to logs.
+
+Document architectural exceptions only when they are present in the source.
+
+## Secrets and Sensitive Information
+
+Do not reproduce secret values, private keys, access tokens, passwords, personal
+data, or complete sensitive configuration values in the report.
+
+If a secret appears to be present, identify the file and variable name while
+redacting the value, for example:
+
+```text
+A credential-like value appears in `path/to/file` under `VARIABLE_NAME`.
+Value: [REDACTED]
+```
+
+Do not attempt to use, validate, decode, exfiltrate, or publish discovered
+secrets.
+
+## Dependency Review
+
+Record dependency concerns only when they can be supported by available
+manifests, lockfiles, configuration, or source usage.
+
+For each dependency-related concern:
+
+* Identify the dependency and manifest or lockfile.
+* Explain how it is used, if relevant.
+* State whether the version status or vulnerability is known or Unknown.
+* Do not claim that a dependency is vulnerable without evidence.
+* Do not install, update, remove, or execute dependencies.
+
+## Limitations
+
+End the report with a section named `Review Limitations`.
+
+Include limitations such as:
+
+* No execution or penetration testing was performed.
+* Runtime deployment configuration may differ from the supplied source.
+* Dependency vulnerability status may be Unknown unless verified separately.
+* The absence of a finding does not demonstrate that the project is secure.
+* Findings require human review and independent validation.
+
+## Rules
+
+* Base all information on the supplied source.
+* Do not invent vulnerabilities, APIs, endpoints, dependencies, or behaviour.
+* If something cannot be determined, write `Unknown`.
+* Do not modify the codebase or any project files.
+* Do not generate implementation patches or replacement source code.
+* Do not provide exploit payloads, credential-extraction steps, or destructive
+  commands.
+* Do not expose secret values or personal data.
+* Separate security issues from reliability, correctness, privacy, and
+  maintainability observations.
+* Avoid duplicate findings that describe the same root cause.
+* Explain uncertainty and possible false positives.
+* Use Markdown.
+* Use plain ASCII where possible.
+* Do not use emoji or decorative symbols.
+* Keep the report concise and prioritise actionable, evidence-based findings.
+
+The goal is an evidence-based issue review of the existing project, not a rewrite,
+security certification, penetration test, or code-generation task.
