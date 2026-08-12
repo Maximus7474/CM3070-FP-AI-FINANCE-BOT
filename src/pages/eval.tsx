@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { API_BASE_URL } from "@/lib/data";
 import { useState } from "react";
-
-const API_BASE_URL = "http://127.0.0.1:8721";
 
 interface StatusState {
   type: "info" | "success" | "error";

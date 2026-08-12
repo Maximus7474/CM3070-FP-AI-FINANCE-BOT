@@ -5,8 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-
-const API_BASE_URL = "http://127.0.0.1:8721";
+import { API_BASE_URL } from "@/lib/data";
 
 const ROLE_STYLES = {
   user: {
