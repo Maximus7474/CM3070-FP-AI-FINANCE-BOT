@@ -54,8 +54,6 @@ export const TrainModel = () => {
 
     const finalModelName = modelName.trim().length === 0 ? generateName() : modelName.trim();
 
-    console.log({ finalModelName });
-
     try {
       const isDuplicate = await modelsRepo.existsByName(finalModelName);
       if (isDuplicate) {
@@ -150,7 +148,7 @@ export const TrainModel = () => {
           </div>
 
           <div className="space-y-2">
-            <Label>Tickers Selection</Label>
+            <Label>Tickers Selection<span className="text-red-500">*</span></Label>
             <Popover open={openTickerSelect} onOpenChange={setOpenTickerSelect}>
               <PopoverTrigger>
                 <Button
