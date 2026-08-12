@@ -8,8 +8,6 @@ from llm.main import generate_explanation, initialize_ollama, handle_chat_intera
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
 from config import TICKERS
 
-print('Loaded librairies, tickers:', TICKERS)
-
 app = FastAPI()
 
 print('FastAPI app created')
@@ -37,7 +35,7 @@ class TrainRequest(BaseModel):
     tickers: Optional[List[str]] = None
     train_start: Optional[str] = None
     train_end: Optional[str] = None
-    model_name: str = "ppo_trading_model"
+    model_name: str = None
 
 class TrainResponse(BaseModel):
     status: str
@@ -56,17 +54,17 @@ class EvaluateRequest(BaseModel):
 class EvaluateResponse(BaseModel):
     status: str
     json_path: str
+    data: dict
 
 # ToDo: integrate into a new page for handlign recommendations
-def generate_recommendation(message: str) -> str:
-    print(f"Received message: {message} - generating recommendation text")
+def generate_recommendation() -> str:
     data = generate_explanation("recommendations.json")
 
     if len(data.allocations) == 0:
         return "Failed to generate explanation list"
 
-    for e in data.allocations:
-        print(f"{e.ticker}: {e.action} ({e.justification})")
+    # for e in data.allocations:
+    #     print(f"{e.ticker}: {e.action} ({e.justification})")
 
     formatted_reply = "\n\n".join(
         f"**{e.ticker}** ({e.action}): {e.justification}"
@@ -81,14 +79,12 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    print('Received chat request', req.message)
     reply = handle_chat_interaction(req.message)
     return ChatResponse(reply=reply)
 
 @app.post("/train", response_model=TrainResponse)
 def api_train_model(req: TrainRequest):
     """Triggers the training pipeline."""
-    print('Received train request', req.model_dump())
     try:
         kwargs = {k: v for k, v in req.model_dump().items() if v is not None}
 
@@ -107,7 +103,10 @@ def api_train_model(req: TrainRequest):
 @app.post("/evaluate", response_model=EvaluateResponse)
 def api_evaluate_model(req: EvaluateRequest):
     """Loads a trained model, evaluates it, and generates recommendations.json."""
-    print('Received evaluate request', req.model_name)
+
+    if not req.model_name:
+        raise HTTPException(status_code=500, detail="No RL agent model was provided")
+
     try:
         model = load_trained_model(req.model_name)
         if model is None:
@@ -119,7 +118,7 @@ def api_evaluate_model(req: EvaluateRequest):
 
         kwargs.pop("model_name", None)
 
-        json_path = generate_recommendations(
+        json_path, data = generate_recommendations(
             model=model,
             valid_tickers=valid_tickers,
             **kwargs
@@ -127,7 +126,8 @@ def api_evaluate_model(req: EvaluateRequest):
 
         return EvaluateResponse(
             status="success",
-            json_path=str(json_path)
+            json_path=str(json_path),
+            data=data,
         )
     except Exception as e:
         traceback.print_exc()

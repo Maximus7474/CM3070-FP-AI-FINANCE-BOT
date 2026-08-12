@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import numpy as np
 from stable_baselines3 import PPO
+from dataclasses import dataclass
 
 from rl_pipeline.data import download_market_data
 from rl_pipeline.environment import TradingEnv
@@ -10,11 +11,13 @@ from rl_pipeline.backtest import run_backtest_suite
 
 from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
 
+@dataclass
 class Allocation:
     ticker: str; action: str; price: float; shares: float
     dollar_value: float; pct_of_budget: float
     rsi: float; macd_hist: float; bb_pct: float
 
+@dataclass
 class JsonRecommendation:
     budget: int;
     cash_remaining: int;
@@ -69,16 +72,20 @@ def train_model(
     """
     Downloads training data, trains the RL model, and saves it to disk.
     """
-    print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
+    # print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
 
     train_raw = download_market_data(tickers, train_start, train_end)
+
     valid_tickers = [t for t in tickers if t in train_raw]
     train_data = {t: train_raw[t] for t in valid_tickers}
 
-    # if valid_tickers:
-    #     save_diagnostic_chart(train_data, valid_tickers[0])
+    if len(valid_tickers) < 1 or len(train_data.keys()) < 1:
+        raise ValueError(
+            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "
+            "Please select a wider date range or check network/yfinance connectivity."
+        )
 
-    print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
+    # print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
     model = train_ppo_agent(train_data)
 
     # Store and make accessible all trained models
@@ -88,7 +95,7 @@ def train_model(
     # Assuming the model has a standard save method (like Stable Baselines 3)
     if hasattr(model, "save"):
         model.save(str(model_path))
-        print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
+        # print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
 
     return model, valid_tickers
 
@@ -99,12 +106,12 @@ def generate_recommendations(
     eval_end: str = EVAL_END,
     budget: float = BUDGET,
     output_filename: str = "recommendations.json"
-) -> Path:
+) -> tuple[Path, dict]:
     """
     Evaluates the model, generates allocations, formats the payload,
     saves to JSON, and returns the absolute path of the JSON file.
     """
-    print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
+    # print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
 
     eval_raw = download_market_data(valid_tickers, eval_start, eval_end)
     eval_data = {t: eval_raw[t] for t in valid_tickers if t in eval_raw}
@@ -119,15 +126,16 @@ def generate_recommendations(
     # Generate Allocations
     allocations = _calculate_allocations(model, eval_data, valid_tickers, budget)
     total_out = sum(a.dollar_value for a in allocations)
+    alpha_margin = metrics['rl_return_pct'] - metrics['bh_return_pct']
 
     # Print Performance Metrics
-    print("\n" + ("=" * 60))
-    print("  Performance Results")
-    print(("=" * 60) + "\n")
-    print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
-    print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
-    print(f"  Alpha Margin       : {metrics['rl_return_pct'] - metrics['bh_return_pct']:>+7.2f} %")
-    print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
+    # print("\n" + ("=" * 60))
+    # print("  Performance Results")
+    # print(("=" * 60) + "\n")
+    # print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
+    # print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
+    # print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
+    # print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
 
     # LLM Payload
     payload = {
@@ -139,6 +147,7 @@ def generate_recommendations(
             "bh_return_pct": round(metrics['bh_return_pct'], 2),
             "sharpe": round(metrics['sharpe'], 3),
             "max_drawdown_pct": round(metrics['max_drawdown'], 2),
+            "alpha_margin": round(alpha_margin, 2),
         },
         "allocations": [a.__dict__ for a in allocations]
     }
@@ -149,9 +158,9 @@ def generate_recommendations(
     with open(payload_path, "w") as f:
         json.dump(payload, f, indent=2)
 
-    print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
+    # print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
 
-    return payload_path.resolve()
+    return payload_path.resolve(), payload
 
 def load_trained_model(model_name: str = "ppo_trading_model"):
     """
@@ -165,9 +174,9 @@ def main():
     """
     Example usage of the new refactored pipeline.
     """
-    print("\n" + ("=" * 60))
-    print("  RL Stock Investment Agent Pipeline")
-    print(("=" * 60) + "\n")
+    # print("\n" + ("=" * 60))
+    # print("  RL Stock Investment Agent Pipeline")
+    # print(("=" * 60) + "\n")
 
     trained_model, valid_tickers = train_model(
         tickers=TICKERS,
@@ -185,7 +194,7 @@ def main():
         output_filename="recommendations.json"
     )
 
-    print(f"Pipeline complete. Application can now read from: {json_path}")
+    # print(f"Pipeline complete. Application can now read from: {json_path}")
 
 if __name__ == "__main__":
     main()
