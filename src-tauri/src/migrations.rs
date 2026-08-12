@@ -34,5 +34,22 @@ pub fn get_migrations() -> Vec<Migration> {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 2,
+            description: "create_trained_models_table",
+            sql: "
+                CREATE TABLE trained_models (
+                    id TEXT PRIMARY KEY,
+                    model_name TEXT NOT NULL,
+                    tickers TEXT NOT NULL,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX idx_trained_models_created_at ON trained_models(created_at DESC);
+            ",
+            kind: MigrationKind::Up,
+        },
     ]
 }
