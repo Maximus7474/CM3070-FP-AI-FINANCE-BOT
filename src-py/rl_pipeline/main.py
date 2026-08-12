@@ -106,7 +106,7 @@ def generate_recommendations(
     eval_end: str = EVAL_END,
     budget: float = BUDGET,
     output_filename: str = "recommendations.json"
-) -> Path:
+) -> tuple[Path, dict]:
     """
     Evaluates the model, generates allocations, formats the payload,
     saves to JSON, and returns the absolute path of the JSON file.
@@ -126,6 +126,7 @@ def generate_recommendations(
     # Generate Allocations
     allocations = _calculate_allocations(model, eval_data, valid_tickers, budget)
     total_out = sum(a.dollar_value for a in allocations)
+    alpha_margin = metrics['rl_return_pct'] - metrics['bh_return_pct']
 
     # Print Performance Metrics
     print("\n" + ("=" * 60))
@@ -133,7 +134,7 @@ def generate_recommendations(
     print(("=" * 60) + "\n")
     print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
     print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
-    print(f"  Alpha Margin       : {metrics['rl_return_pct'] - metrics['bh_return_pct']:>+7.2f} %")
+    print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
     print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
 
     # LLM Payload
@@ -146,6 +147,7 @@ def generate_recommendations(
             "bh_return_pct": round(metrics['bh_return_pct'], 2),
             "sharpe": round(metrics['sharpe'], 3),
             "max_drawdown_pct": round(metrics['max_drawdown'], 2),
+            "alpha_margin": round(alpha_margin, 2),
         },
         "allocations": [a.__dict__ for a in allocations]
     }
@@ -158,7 +160,7 @@ def generate_recommendations(
 
     print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
 
-    return payload_path.resolve()
+    return payload_path.resolve(), payload
 
 def load_trained_model(model_name: str = "ppo_trading_model"):
     """

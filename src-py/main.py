@@ -56,6 +56,7 @@ class EvaluateRequest(BaseModel):
 class EvaluateResponse(BaseModel):
     status: str
     json_path: str
+    data: dict
 
 # ToDo: integrate into a new page for handlign recommendations
 def generate_recommendation(message: str) -> str:
@@ -123,7 +124,7 @@ def api_evaluate_model(req: EvaluateRequest):
 
         kwargs.pop("model_name", None)
 
-        json_path = generate_recommendations(
+        json_path, data = generate_recommendations(
             model=model,
             valid_tickers=valid_tickers,
             **kwargs
@@ -131,7 +132,8 @@ def api_evaluate_model(req: EvaluateRequest):
 
         return EvaluateResponse(
             status="success",
-            json_path=str(json_path)
+            json_path=str(json_path),
+            data=data,
         )
     except Exception as e:
         traceback.print_exc()
