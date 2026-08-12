@@ -24,12 +24,12 @@ def train_ppo_agent(train_data: dict) -> PPO:
         policy_kwargs = dict(net_arch=[128, 64]),
     )
 
-    print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Beginning network policy optimization optimization updates...\n")
+    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Beginning network policy optimization optimization updates...\n")
     model.learn(total_timesteps=TIMESTEPS, progress_bar=True)
 
     model_path = OUTPUT_DIR / "poc_agent"
     model.save(model_path)
-    print()
-    print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Policy model weights binary serialized out to: {model_path}.zip")
+    # print()
+    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Policy model weights binary serialized out to: {model_path}.zip")
 
     return model

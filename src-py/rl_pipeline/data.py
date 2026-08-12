@@ -42,9 +42,9 @@ def download_market_data(tickers: list[str], start: str, end: str) -> dict[str, 
     Downloads time-series data and appends indicator columns.
     """
     datasets: dict[str, pd.DataFrame] = {}
-    
-    print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Downloading market data ({start} -> {end})")
-    
+
+    # print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Downloading market data ({start} -> {end})")
+
     for ticker in tickers:
         raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
         if isinstance(raw.columns, pd.MultiIndex):
@@ -55,10 +55,10 @@ def download_market_data(tickers: list[str], start: str, end: str) -> dict[str, 
 
         df = add_indicators(raw.copy())
         datasets[ticker] = df
-        
-        print(f"    - {ticker}: {len(df)} rows, "
-              f"price range ${df['Close'].min():.0f}–${df['Close'].max():.0f}")
-        
+
+        # print(f"    - {ticker}: {len(df)} rows, "
+        #       f"price range ${df['Close'].min():.0f}–${df['Close'].max():.0f}")
+
     return datasets
 
 def save_diagnostic_chart(train_data: dict[str, pd.DataFrame], target_ticker: str):
@@ -67,10 +67,10 @@ def save_diagnostic_chart(train_data: dict[str, pd.DataFrame], target_ticker: st
     """
     if target_ticker not in train_data:
         return
-    
+
     df_vis = train_data[target_ticker]
     fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
-    
+
     axes[0].plot(df_vis.index, df_vis["Close"], linewidth=1)
     axes[0].set_title(f"{target_ticker} - Closing Price (training period)")
     axes[0].set_ylabel("Price ($)")

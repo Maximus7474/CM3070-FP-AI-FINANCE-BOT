@@ -111,7 +111,7 @@ def ensure_ollama_running(timeout: int = 20, base_url: str = OLLAMA_BASE) -> Non
             "Make sure it's included in the sidecar build."
         )
 
-    print(f"Starting bundled Ollama server from {ollama_path} ...")
+    print(f"[Ollama] Starting bundled server from {ollama_path} ...")
     env = os.environ.copy()
     env["OLLAMA_MODELS"] = str(get_models_dir())
 
@@ -127,7 +127,7 @@ def ensure_ollama_running(timeout: int = 20, base_url: str = OLLAMA_BASE) -> Non
     for _ in range(timeout):
         try:
             requests.get(base_url, timeout=2)
-            print("Ollama server is up.")
+            print("[Ollama] Server is up.")
             return
         except requests.exceptions.ConnectionError:
             time.sleep(1)
@@ -146,7 +146,7 @@ def ensure_model_available(model: str = MODEL, base_url: str = OLLAMA_BASE) -> N
     if any(model == m or m.startswith(f"{model}:") for m in local_models):
         return
 
-    print(f"Model '{model}' not found — pulling into {get_models_dir()} ...")
+    print(f"[Ollama] Model '{model}' not found - pulling into {get_models_dir()} ...")
     ollama_path = get_ollama_binary_path()
     env = os.environ.copy()
     env["OLLAMA_MODELS"] = str(get_models_dir())
@@ -267,7 +267,7 @@ def generate_explanation(file_name: str) -> Recommendation:
         "backtest_summary": recommendations_data.get("backtest_summary")
     }
 
-    print(f"\n--- Generating Explanations from {file_name} ---\n")
+    # print(f"\n--- Generating Explanations from {file_name} ---\n")
 
     response = []
 
@@ -293,8 +293,6 @@ def handle_chat_interaction(user_question: str) -> str:
     """
     if not client:
         raise ValueError("Error: ollama client is not initialized")
-
-    print("Processing Educational Chat...")
 
     response = client.chat(SYSTEM_PROMPTS["CHAT"], user_question)
 

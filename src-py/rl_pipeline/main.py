@@ -72,7 +72,7 @@ def train_model(
     """
     Downloads training data, trains the RL model, and saves it to disk.
     """
-    print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
+    # print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
 
     train_raw = download_market_data(tickers, train_start, train_end)
 
@@ -85,7 +85,7 @@ def train_model(
             "Please select a wider date range or check network/yfinance connectivity."
         )
 
-    print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
+    # print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
     model = train_ppo_agent(train_data)
 
     # Store and make accessible all trained models
@@ -95,7 +95,7 @@ def train_model(
     # Assuming the model has a standard save method (like Stable Baselines 3)
     if hasattr(model, "save"):
         model.save(str(model_path))
-        print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
+        # print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
 
     return model, valid_tickers
 
@@ -111,7 +111,7 @@ def generate_recommendations(
     Evaluates the model, generates allocations, formats the payload,
     saves to JSON, and returns the absolute path of the JSON file.
     """
-    print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
+    # print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
 
     eval_raw = download_market_data(valid_tickers, eval_start, eval_end)
     eval_data = {t: eval_raw[t] for t in valid_tickers if t in eval_raw}
@@ -129,13 +129,13 @@ def generate_recommendations(
     alpha_margin = metrics['rl_return_pct'] - metrics['bh_return_pct']
 
     # Print Performance Metrics
-    print("\n" + ("=" * 60))
-    print("  Performance Results")
-    print(("=" * 60) + "\n")
-    print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
-    print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
-    print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
-    print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
+    # print("\n" + ("=" * 60))
+    # print("  Performance Results")
+    # print(("=" * 60) + "\n")
+    # print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
+    # print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
+    # print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
+    # print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
 
     # LLM Payload
     payload = {
@@ -158,7 +158,7 @@ def generate_recommendations(
     with open(payload_path, "w") as f:
         json.dump(payload, f, indent=2)
 
-    print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
+    # print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
 
     return payload_path.resolve(), payload
 
@@ -174,9 +174,9 @@ def main():
     """
     Example usage of the new refactored pipeline.
     """
-    print("\n" + ("=" * 60))
-    print("  RL Stock Investment Agent Pipeline")
-    print(("=" * 60) + "\n")
+    # print("\n" + ("=" * 60))
+    # print("  RL Stock Investment Agent Pipeline")
+    # print(("=" * 60) + "\n")
 
     trained_model, valid_tickers = train_model(
         tickers=TICKERS,
@@ -194,7 +194,7 @@ def main():
         output_filename="recommendations.json"
     )
 
-    print(f"Pipeline complete. Application can now read from: {json_path}")
+    # print(f"Pipeline complete. Application can now read from: {json_path}")
 
 if __name__ == "__main__":
     main()
