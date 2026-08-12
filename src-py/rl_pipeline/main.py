@@ -72,11 +72,15 @@ def train_model(
     print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
 
     train_raw = download_market_data(tickers, train_start, train_end)
+
     valid_tickers = [t for t in tickers if t in train_raw]
     train_data = {t: train_raw[t] for t in valid_tickers}
 
-    # if valid_tickers:
-    #     save_diagnostic_chart(train_data, valid_tickers[0])
+    if len(valid_tickers) < 1 or len(train_data.keys()) < 1:
+        raise ValueError(
+            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "
+            "Please select a wider date range or check network/yfinance connectivity."
+        )
 
     print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
     model = train_ppo_agent(train_data)
