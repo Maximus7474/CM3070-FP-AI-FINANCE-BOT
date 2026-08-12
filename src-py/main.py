@@ -37,7 +37,7 @@ class TrainRequest(BaseModel):
     tickers: Optional[List[str]] = None
     train_start: Optional[str] = None
     train_end: Optional[str] = None
-    model_name: str = "ppo_trading_model"
+    model_name: str = None
 
 class TrainResponse(BaseModel):
     status: str
@@ -108,6 +108,10 @@ def api_train_model(req: TrainRequest):
 def api_evaluate_model(req: EvaluateRequest):
     """Loads a trained model, evaluates it, and generates recommendations.json."""
     print('Received evaluate request', req.model_name)
+
+    if not req.model_name:
+        raise HTTPException(status_code=500, detail="No RL agent model was provided")
+
     try:
         model = load_trained_model(req.model_name)
         if model is None:

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import numpy as np
 from stable_baselines3 import PPO
+from dataclasses import dataclass
 
 from rl_pipeline.data import download_market_data
 from rl_pipeline.environment import TradingEnv
@@ -10,11 +11,13 @@ from rl_pipeline.backtest import run_backtest_suite
 
 from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
 
+@dataclass
 class Allocation:
     ticker: str; action: str; price: float; shares: float
     dollar_value: float; pct_of_budget: float
     rsi: float; macd_hist: float; bb_pct: float
 
+@dataclass
 class JsonRecommendation:
     budget: int;
     cash_remaining: int;
