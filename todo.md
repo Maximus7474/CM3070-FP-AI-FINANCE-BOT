@@ -8,8 +8,8 @@
   - [ ] (Opt) create knowledge base
 
 - Settings
-  - [ ] Select/delete trained models
-  - [ ] Train model
+  - [x] Select/delete trained models
+  - [x] Train model
   - [ ] Configure LLM model (select ollama model, opt download model ?)
 
 - Prediction page
