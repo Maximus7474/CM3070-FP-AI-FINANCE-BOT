@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
 from config import OUTPUT_DIR
+from quiz.main import build_review_prompt
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_BASE = "http://localhost:11434"
@@ -192,7 +193,27 @@ When discussing a specific stock:
 If asked for investment advice, explain that you can teach the concepts, interpret market data, and discuss strategies, but investment decisions are the user's responsibility.
 If information is missing or uncertain, say so instead of guessing.
 Your goal is to help users become informed and independent learners.
-"""
+""",
+    "QUIZ_REVIEW": """You are an assessment reviewer for a self-hosted financial education app.
+You will be given a quiz generated from a reinforcement-learning (RL) trading agent's output, the user's answers, and the correct answers.
+
+Review each answer:
+- For multiple-choice questions, mark the answer correct or incorrect against the supplied correct_answer.
+- For open-ended questions, assess whether the explanation is reasonable and grounded in the provided technical indicators.
+- Keep feedback concise and constructive. Do not provide financial advice.
+
+Return ONLY a valid JSON object (no markdown fences, no commentary) with exactly this schema:
+{
+  "reviews": [
+    {"question_id": "...", "correct": true, "feedback": "..."}
+  ],
+  "overall_feedback": "...",
+  "score": 0,
+  "total": 0
+}
+
+Scoring: award 1 point per correct multiple-choice answer and 0-2 points per open-ended answer based on quality. Set "total" to the maximum points available across all questions.
+""",
 }
 
 
@@ -297,3 +318,20 @@ def handle_chat_interaction(user_question: str) -> str:
     response = client.chat(SYSTEM_PROMPTS["CHAT"], user_question)
 
     return response
+
+def review_quiz_answers(questions: list[str], answers: list[str]) -> dict[str, str]:
+    """
+    Sends the quiz, correct answers, and the user's answers to the LLM for
+    review. Returns a parsed dict when the model responds with JSON, otherwise
+    falls back to the raw text under the `raw` key.
+    """
+    if not client:
+        raise ValueError("Error: ollama client is not initialized")
+
+    user_prompt = build_review_prompt(questions, answers)
+    raw = client.chat(SYSTEM_PROMPTS["QUIZ_REVIEW"], user_prompt, temperature=0.2)
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw}
