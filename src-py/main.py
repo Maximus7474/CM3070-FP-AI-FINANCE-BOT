@@ -4,8 +4,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 import traceback
 
-from llm.main import generate_explanation, initialize_ollama, handle_chat_interaction
+from llm.main import generate_explanation, initialize_ollama, handle_chat_interaction, review_quiz_answers
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
+from quiz.main import generate_quiz, strip_correct_answers
 from config import TICKERS
 
 app = FastAPI()
@@ -45,7 +46,7 @@ class TrainResponse(BaseModel):
 
 class EvaluateRequest(BaseModel):
     model_name: str = "ppo_trading_model"
-    tickers: Optional[List[str]] = None
+    tickers: Optional[list[str]] = None
     eval_start: Optional[str] = None
     eval_end: Optional[str] = None
     budget: Optional[float] = None
@@ -56,7 +57,13 @@ class EvaluateResponse(BaseModel):
     json_path: str
     data: dict
 
-# ToDo: integrate into a new page for handlign recommendations
+class QuizAnswer(BaseModel):
+    question_id: str
+    answer: str = ""
+
+class QuizReviewRequest(BaseModel):
+    answers: list[QuizAnswer]
+
 def generate_recommendation() -> str:
     data = generate_explanation("recommendations.json")
 
@@ -99,6 +106,34 @@ def api_train_model(req: TrainRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+@app.get("/quiz/generate")
+def api_generate_quiz():
+    """Builds a data-grounded quiz from the latest recommendations.json."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"status": "success", "questions": strip_correct_answers(questions)}
+
+
+@app.post("/quiz/review")
+def api_review_quiz(req: QuizReviewRequest):
+    """Reviews the user's quiz answers against the RL agent's output via the LLM."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        review = review_quiz_answers(questions, [a.model_dump() for a in req.answers])
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Quiz review failed: {str(e)}")
+
+    return {"status": "success", "review": review}
+
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 def api_evaluate_model(req: EvaluateRequest):
