@@ -3,11 +3,12 @@ from pathlib import Path
 import numpy as np
 from stable_baselines3 import PPO
 from dataclasses import dataclass
+from typing_extensions import Any
 
 from rl_pipeline.data import download_market_data
 from rl_pipeline.environment import TradingEnv
 from rl_pipeline.rl_agent import train_ppo_agent
-from rl_pipeline.backtest import run_backtest_suite
+from rl_pipeline.backtest import run_backtest_suite, build_evolution_curves
 
 from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
 
@@ -22,10 +23,10 @@ class JsonRecommendation:
     budget: int;
     cash_remaining: int;
     eval_period: str;
-    backtest_summary: dict;
+    backtest_summary: dict[str, str | float | int];
     allocations: list[Allocation];
 
-def _calculate_allocations(model, eval_data: dict, tickers: list, budget: float) -> list[Allocation]:
+def _calculate_allocations(model, eval_data: dict, tickers: list[str], budget: float) -> list[Allocation]:
     """
     Internal helper: Generates execution signals for the final evaluation timestamp.
     """
@@ -64,7 +65,7 @@ def _calculate_allocations(model, eval_data: dict, tickers: list, budget: float)
 
 
 def train_model(
-    tickers: list = TICKERS,
+    tickers: list[str] = TICKERS,
     train_start: str = TRAIN_START,
     train_end: str = TRAIN_END,
     model_name: str = "ppo_trading_model"
@@ -81,7 +82,7 @@ def train_model(
 
     if len(valid_tickers) < 1 or len(train_data.keys()) < 1:
         raise ValueError(
-            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "
+            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "+
             "Please select a wider date range or check network/yfinance connectivity."
         )
 
@@ -101,12 +102,12 @@ def train_model(
 
 def generate_recommendations(
     model,
-    valid_tickers: list,
+    valid_tickers: list[str],
     eval_start: str = EVAL_START,
     eval_end: str = EVAL_END,
     budget: float = BUDGET,
     output_filename: str = "recommendations.json"
-) -> tuple[Path, dict]:
+) -> tuple[Path, dict[str, Any]]:
     """
     Evaluates the model, generates allocations, formats the payload,
     saves to JSON, and returns the absolute path of the JSON file.
@@ -137,6 +138,8 @@ def generate_recommendations(
     # print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
     # print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
 
+    evolution = build_evolution_curves(metrics["tr_rl"], metrics["tr_bh"], budget)
+
     # LLM Payload
     payload = {
         "budget": budget,
@@ -149,7 +152,8 @@ def generate_recommendations(
             "max_drawdown_pct": round(metrics['max_drawdown'], 2),
             "alpha_margin": round(alpha_margin, 2),
         },
-        "allocations": [a.__dict__ for a in allocations]
+        "allocations": [a.__dict__ for a in allocations],
+        "evolution": evolution
     }
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -174,9 +178,9 @@ def main():
     """
     Example usage of the new refactored pipeline.
     """
-    # print("\n" + ("=" * 60))
-    # print("  RL Stock Investment Agent Pipeline")
-    # print(("=" * 60) + "\n")
+    print("\n" + ("=" * 60))
+    print("  RL Stock Investment Agent Pipeline")
+    print(("=" * 60) + "\n")
 
     trained_model, valid_tickers = train_model(
         tickers=TICKERS,
@@ -194,7 +198,7 @@ def main():
         output_filename="recommendations.json"
     )
 
-    # print(f"Pipeline complete. Application can now read from: {json_path}")
+    print(f"Pipeline complete. Application can now read from: {json_path}")
 
 if __name__ == "__main__":
     main()

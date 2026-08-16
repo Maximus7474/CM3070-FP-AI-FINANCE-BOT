@@ -137,8 +137,52 @@ def extract_performance_data(rl_strat, bh_strat, rl_end, bh_end):
         "sharpe": sr,                   #     sharpe ratio (risk-adjusted return metric; higher is better)
         "trades": n_trades,             #     total number of round-trip trades completed and closed by the agent
         "won": n_won,                   #     total number of completed trades that resulted in a positive financial profit
-        "tr_rl": tr_rl                  #     dict mapping daily dates to raw returns, used for equity path construction
+        "tr_rl": tr_rl,                 #     dict mapping daily dates to raw returns, used for equity path construction
+        "tr_bh": tr_bh                  #     dict mapping daily dates to raw returns for the buy-and-hold benchmark
     }
+
+def build_evolution_curves(tr_rl, tr_bh, budget=BUDGET):
+    """
+    Converts raw daily-return dicts (date -> return) into aligned portfolio
+    value and drawdown series, ready to be serialized to the frontend.
+    """
+    def cumulative(tr_dict):
+        out = {}
+        value = budget
+        for d, r in sorted(tr_dict.items()):
+            value *= (1.0 + r)
+            out[d] = value
+        return out
+
+    rl_map = cumulative(tr_rl)
+    bh_map = cumulative(tr_bh)
+
+    dates = sorted(set(rl_map) | set(bh_map))
+
+    iso, rl_values, bh_values, rl_dd, bh_dd = [], [], [], [], []
+    rl_val = bh_val = budget
+    rl_peak = bh_peak = budget
+
+    for d in dates:
+        rl_val = rl_map.get(d, rl_val)
+        bh_val = bh_map.get(d, bh_val)
+        rl_peak = max(rl_peak, rl_val)
+        bh_peak = max(bh_peak, bh_val)
+
+        iso.append(d.isoformat() if hasattr(d, "isoformat") else str(d))
+        rl_values.append(round(rl_val, 2))
+        bh_values.append(round(bh_val, 2))
+        rl_dd.append(round((rl_val - rl_peak) / rl_peak * 100, 2))
+        bh_dd.append(round((bh_val - bh_peak) / bh_peak * 100, 2))
+
+    return {
+        "dates": iso,
+        "rl_value": rl_values,
+        "bh_value": bh_values,
+        "rl_drawdown": rl_dd,
+        "bh_drawdown": bh_dd,
+    }
+
 
 def save_equity_curve(tr_rl, tr_bh):
     """
