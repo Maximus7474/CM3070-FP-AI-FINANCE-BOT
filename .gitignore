@@ -29,3 +29,4 @@ src-py/build/app
 src-tauri/binaries/
 src/models/
 src/recommendation.json
+docs/report/
