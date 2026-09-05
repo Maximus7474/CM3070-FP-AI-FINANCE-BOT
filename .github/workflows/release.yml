@@ -20,6 +20,9 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
