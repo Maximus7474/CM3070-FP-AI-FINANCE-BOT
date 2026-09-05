@@ -63,3 +63,71 @@ The app uses the **`0xroyce/plutus`** model. This step is mandatory — the app 
 ## Uninstalling
 
 Uninstall **financial-advisor-app** and **Ollama** from *Settings → Apps → Installed apps*. Your downloaded model files can be removed with `ollama rm 0xroyce/plutus` beforehand to free disk space.
+
+---
+
+# Guide d'installation — Français
+
+Démarrage rapide : installez l'application, installez Ollama, téléchargez le modèle, puis lancez l'application.
+
+> [!AVERTISSEMENT]
+> Cette application est un outil, pas un conseil financier. Les recommandations sont générées par intelligence artificielle et peuvent être erronées. Vérifiez toujours auprès de sources fiables avant de prendre des décisions d'investissement.
+
+## Configuration requise
+
+- **Windows 10 ou 11** (64 bits)
+- ~8 Go d'espace disque libre (le modèle IA représente à lui seul plusieurs Go)
+- Une connexion Internet pour le téléchargement initial d'Ollama et du modèle
+
+## Étape 1 — Installer l'application
+
+1. Téléchargez le programme d'installation : `financial-advisor-app_0.1.0_x64-setup.exe`
+2. Double-cliquez dessus et acceptez les valeurs par défaut.
+3. Une fois l'installation terminée, l'application est installée — ne la lancez pas encore.
+
+## Étape 2 — Installer Ollama
+
+Ollama exécute le modèle IA localement sur votre machine. L'application a besoin de son serveur sur `localhost:11434`.
+
+1. Rendez-vous sur **https://ollama.com/download** et téléchargez le programme d'installation Windows.
+2. Exécutez-le et suivez les instructions.
+3. Après l'installation, Ollama démarre automatiquement dans la barre d'état système (l'icône lama près de l'horloge). Laissez-le en cours d'exécution.
+
+## Étape 3 — Télécharger le modèle (obligatoire)
+
+L'application utilise le modèle **`0xroyce/plutus`**. Cette étape est obligatoire — l'application ne peut pas télécharger le modèle elle-même, et les fonctions de chat/recommandations ne fonctionneront pas tant que ce n'est pas fait.
+
+1. Ouvrez un terminal (appuyez sur `Win`, tapez `cmd` ou `PowerShell`, appuyez sur `Entrée`).
+2. Exécutez :
+
+   ```sh
+   ollama pull 0xroyce/plutus
+   ```
+
+3. Attendez la fin du téléchargement. Le modèle pèse plusieurs gigaoctets ; la première fois, le téléchargement peut prendre un certain temps selon votre connexion.
+
+## Étape 4 — Lancer l'application
+
+1. Ouvrez le **menu Démarrer** et recherchez **financial-advisor-app** (ou trouvez-le dans la liste des applications installées).
+2. Lancez-le et attendez. Le premier lancement est sensiblement plus lent pendant que le moteur d'analyse intégré s'extrait et s'initialise — c'est normal.
+3. Une fois chargé, vous pouvez obtenir des recommandations boursières et discuter avec l'IA.
+
+## Dépannage
+
+| Symptôme | Solution |
+| --- | --- |
+| L'application s'ouvre mais les recommandations ou le chat échouent / affichent une erreur | Ollama ne tourne pas ou le modèle manque. Vérifiez que l'icône Ollama dans la barre d'état est présente, puis relancez `ollama pull 0xroyce/plutus`. |
+| `ollama` n'est pas reconnu comme une commande | Ollama n'a pas été installé ou le terminal doit être rouvert après l'installation. Rouvrez le terminal et réessayez. |
+| « Pulling manifest » ou téléchargement bloqué | Vérifiez votre connexion Internet ; le téléchargement du modèle peut être repris en relançant `ollama pull 0xroyce/plutus`. |
+| Tout se charge mais les réponses sont lentes | Le modèle se charge encore en mémoire lors de la première utilisation, ou votre machine est peu puissante. Attendez quelques secondes et réessayez. |
+| Erreur du moteur / sidecar au démarrage | L'application a besoin du serveur Ollama sur `http://localhost:11434`. Assurez-vous qu'Ollama est en cours d'exécution (icône dans la barre d'état) et que le modèle est téléchargé, puis redémarrez l'application. |
+
+## Mise à jour
+
+- **Application :** téléchargez et exécutez le programme d'installation le plus récent — il remplace la version précédente.
+- **Ollama :** exécutez `ollama update` dans un terminal.
+- **Modèle :** relancez `ollama pull 0xroyce/plutus` pour récupérer la dernière version.
+
+## Désinstallation
+
+Désinstallez **financial-advisor-app** et **Ollama** depuis *Paramètres → Applications → Applications installées*. Vous pouvez au préalable supprimer les fichiers du modèle téléchargé avec `ollama rm 0xroyce/plutus` pour libérer de l'espace disque.
