@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -6,10 +7,17 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import pages from "./pages";
+import { syncLlmSettingsOnLaunch } from "@/lib/llm-sync";
 
 import './App.css';
 
 export default function App() {
+  // Re-apply the user's saved LLM choice to the backend once on launch
+  // (covers sidecar restarts that reset the backend's in-memory state).
+  useEffect(() => {
+    syncLlmSettingsOnLaunch();
+  }, []);
+
   return (
     <SidebarProvider
       style={

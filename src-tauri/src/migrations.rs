@@ -51,5 +51,17 @@ pub fn get_migrations() -> Vec<Migration> {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "create_app_settings_table",
+            sql: "
+                CREATE TABLE app_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at INTEGER NOT NULL
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
     ]
 }

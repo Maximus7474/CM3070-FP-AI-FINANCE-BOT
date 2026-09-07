@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "@/lib/data";
+import { SETTINGS_KEYS, settingsRepo } from "@/lib/db/settings";
+import { DEFAULT_LLM_PROVIDER } from "@/hooks/use-llm";
 
 const ROLE_STYLES = {
   user: {
@@ -50,10 +52,19 @@ export default function Chat() {
 
     try {
       const history = messages.slice(-10).map(({ role, content }) => ({ role, content }));
+      const [savedModel, savedProvider] = await Promise.all([
+        settingsRepo.get(SETTINGS_KEYS.llmModel),
+        settingsRepo.get(SETTINGS_KEYS.llmProvider),
+      ]);
       const res = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({
+          message: text,
+          history,
+          model: savedModel ?? undefined,
+          provider: savedProvider ?? DEFAULT_LLM_PROVIDER,
+        }),
       });
       const data = await res.json();
       await appendMessage("assistant", data.reply);
