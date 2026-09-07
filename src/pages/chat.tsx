@@ -1,10 +1,11 @@
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ChatMarkdown } from "@/components/chat-markdown";
 import { Button } from "@/components/ui/button";
 import { useConversation } from "@/hooks/use-conversation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "@/lib/data";
 import { SETTINGS_KEYS, settingsRepo } from "@/lib/db/settings";
 import { DEFAULT_LLM_PROVIDER } from "@/hooks/use-llm";
@@ -99,9 +100,9 @@ export default function Chat() {
 
                 return (
                   <div key={msg.id || i} className={cn("flex flex-col", roleStyle.align)}>
-                    <span className={cn("inline-block px-3 py-2 rounded-lg text-sm whitespace-pre-wrap max-w-[85%] md:max-w-[75%]", roleStyle.bubble)}>
-                      {msg.content}
-                    </span>
+                    <div className={cn("px-3 py-2 rounded-lg text-sm max-w-[85%] md:max-w-[75%]", roleStyle.bubble)}>
+                      <ChatMarkdown content={msg.content} />
+                    </div>
                     <span className="text-[10px] text-muted-foreground mt-1 px-1">
                       {new Date(msg.created_at).toLocaleTimeString([], {
                         hour: "2-digit",
