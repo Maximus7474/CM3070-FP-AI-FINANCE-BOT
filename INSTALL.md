@@ -44,6 +44,16 @@ The app uses the **`0xroyce/plutus`** model. This step is mandatory — the app 
 2. Launch it and wait. The first launch is noticeably slower while the built-in analysis engine extracts and initializes — this is normal.
 3. Once loaded, you can get stock recommendations and chat with the AI.
 
+## Changing the AI model
+
+The default model is **`0xroyce/plutus`**, but you can use any model you have downloaded with Ollama:
+
+1. Open **Settings → Main Settings → LLM Provider** in the app.
+2. Pick any model from the **Model** dropdown — it lists everything downloaded on your machine.
+3. To add more models, follow the "Downloading more models" instructions on the same page (`ollama pull <model-name>`), then click the refresh button.
+
+Support for hosted providers (OpenAI/ChatGPT, Anthropic/Claude) is planned for a future release.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -111,6 +121,16 @@ L'application utilise le modèle **`0xroyce/plutus`**. Cette étape est obligato
 1. Ouvrez le **menu Démarrer** et recherchez **financial-advisor-app** (ou trouvez-le dans la liste des applications installées).
 2. Lancez-le et attendez. Le premier lancement est sensiblement plus lent pendant que le moteur d'analyse intégré s'extrait et s'initialise — c'est normal.
 3. Une fois chargé, vous pouvez obtenir des recommandations boursières et discuter avec l'IA.
+
+## Changer de modèle IA
+
+Le modèle par défaut est **`0xroyce/plutus`**, mais vous pouvez utiliser n'importe quel modèle téléchargé avec Ollama :
+
+1. Ouvrez **Paramètres → Paramètres principaux → Fournisseur LLM** dans l'application.
+2. Choisissez un modèle dans la liste déroulante **Modèle** — elle affiche tous les modèles téléchargés sur votre machine.
+3. Pour ajouter d'autres modèles, suivez les instructions « Télécharger plus de modèles » sur cette même page (`ollama pull <nom-du-modèle>`), puis cliquez sur le bouton d'actualisation.
+
+La prise en charge de fournisseurs hébergés (OpenAI/ChatGPT, Anthropic/Claude) est prévue dans une version ultérieure.
 
 ## Dépannage
 

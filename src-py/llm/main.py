@@ -1,156 +1,118 @@
-import requests
 import json
-import os
-import subprocess
-import sys
-import time
-from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Any, Dict, List, Optional
 
 from config import OUTPUT_DIR
+from llm.providers import (
+    DEFAULT_OLLAMA_MODEL,
+    get_provider,
+)
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
-OLLAMA_BASE = "http://localhost:11434"
-MODEL = "0xroyce/plutus"
+# Default active provider/model (used until the user picks something else
+# in settings, or the frontend re-applies a saved choice at launch).
+DEFAULT_PROVIDER = "ollama"
 
-client = None
+# Runtime state for the active provider/model.
+active_provider_id: str = DEFAULT_PROVIDER
+active_model: str = DEFAULT_OLLAMA_MODEL
+
 
 def initialize_ollama() -> None:
-    global client
-    if client is None:
-        client = OllamaClient(default_model=MODEL)
-        client.start()
-        client.ensure_model()
-
-
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).parent
-
-
-def get_ollama_binary_path() -> Path:
-    base = get_base_dir()
-    binary_name = "ollama.exe" if sys.platform == "win32" else "ollama"
-    return base / "ollama" / binary_name
-
-
-def get_models_dir() -> Path:
-    models_dir = get_base_dir() / "ollama" / "models"
-    models_dir.mkdir(parents=True, exist_ok=True)
-    return models_dir
-
-
-class OllamaClient:
     """
-    Configurable wrapper around a bundled Ollama instance.
-    The use of a class based wrapper should allow us to also
-    use external systems (i.e. paid LLMs such as Claude, ChatGPT).
+    Best-effort startup for the default provider.
 
-    Note:
-    We should be able to do all of this just with ollama I think.
-    """
-
-    def __init__(self, default_model: str = MODEL, base_url: str = OLLAMA_BASE):
-        self.default_model = default_model
-        self.base_url = base_url
-        self.chat_url = f"{base_url}/api/chat"
-        self._started = False
-
-    def start(self) -> None:
-        """Ensure the bundled server is running. Call once at app startup."""
-        if not self._started:
-            ensure_ollama_running(base_url=self.base_url)
-            self._started = True
-
-    def ensure_model(self) -> None:
-        """
-        Pull a given model (or the default) if not already present.
-        """
-        ensure_model_available(self.default_model, base_url=self.base_url)
-
-
-    def chat(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        temperature: float = 0.7,
-        stream: bool = False,
-    ) -> str:
-        """
-        Send a chat request to a specific model.
-        """
-        payload = {
-            "model": self.default_model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "options": {"temperature": temperature},
-            "stream": stream,
-        }
-        response = requests.post(self.chat_url, json=payload, timeout=120)
-        response.raise_for_status()
-        return response.json()["message"]["content"]
-
-
-def ensure_ollama_running(timeout: int = 20, base_url: str = OLLAMA_BASE) -> None:
-    """
-    Start the vendored Ollama server if it's not already running.
+    Never raises: a missing/down Ollama server must not crash the app,
+    the settings UI reports availability and the user manages models
+    from there.
     """
     try:
-        requests.get(base_url, timeout=2)
-        return  # already running
-    except requests.exceptions.ConnectionError:
-        pass
+        provider = get_provider(DEFAULT_PROVIDER)
+        provider.start()
+        print(f"[LLM] Provider '{provider.display_name}' is ready.")
+    except Exception as e:  # noqa: BLE001 - startup must not crash the app
+        print(f"[LLM] Provider '{DEFAULT_PROVIDER}' unavailable at startup: {e}")
 
-    ollama_path = get_ollama_binary_path()
-    if not ollama_path.exists():
-        raise FileNotFoundError(
-            f"Vendored ollama binary not found at {ollama_path}. "
-            "Make sure it's included in the sidecar build."
+
+def get_active() -> Dict[str, str]:
+    """Currently selected provider and model."""
+    return {"provider": active_provider_id, "model": active_model}
+
+
+def set_active(provider_id: str, model: str) -> Dict[str, str]:
+    """
+    Switch the active provider/model at runtime.
+
+    Raises KeyError for unknown providers, ValueError for providers that
+    are not wired up yet, LookupError when the model is not downloaded.
+    """
+    global active_provider_id, active_model
+
+    provider = get_provider(provider_id)  # KeyError
+    if not provider.available:
+        hint = f" {provider.setup_hint}" if provider.setup_hint else ""
+        raise ValueError(f"Provider '{provider.display_name}' is not available yet.{hint}")
+
+    # Try to make sure the backend is reachable before validating the model.
+    provider.start()  # may raise FileNotFoundError/RuntimeError
+
+    if not provider.has_model(model):  # may raise ConnectionError
+        raise LookupError(
+            f"Model '{model}' is not downloaded. Run: ollama pull {model}"
         )
 
-    print(f"[Ollama] Starting bundled server from {ollama_path} ...")
-    env = os.environ.copy()
-    env["OLLAMA_MODELS"] = str(get_models_dir())
+    active_provider_id = provider_id
+    active_model = model
+    return get_active()
 
-    creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    subprocess.Popen(
-        [str(ollama_path), "serve"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-        creationflags=creationflags,
+
+def list_models(provider_id: str = DEFAULT_PROVIDER) -> List[Dict[str, Any]]:
+    """Models available for a given provider (raises for stub providers)."""
+    provider = get_provider(provider_id)
+    if not provider.available:
+        hint = f" {provider.setup_hint}" if provider.setup_hint else ""
+        raise ValueError(f"Provider '{provider.display_name}' is not available yet.{hint}")
+    return provider.list_models()
+
+
+def _resolve_provider(provider_id: Optional[str]):
+    pid = provider_id or active_provider_id
+    provider = get_provider(pid)
+    if not provider.available:
+        hint = f" {provider.setup_hint}" if provider.setup_hint else ""
+        raise ValueError(f"Provider '{provider.display_name}' is not available yet.{hint}")
+    return pid, provider
+
+
+def chat(
+    system_prompt: str,
+    user_prompt: str,
+    model: Optional[str] = None,
+    provider_id: Optional[str] = None,
+    temperature: float = 0.7,
+    stream: bool = False,
+) -> str:
+    """
+    Route a single chat request through the active (or explicitly chosen)
+    provider/model.
+    """
+    pid, provider = _resolve_provider(provider_id)
+    if pid == active_provider_id:
+        mdl = model or active_model
+    else:
+        mdl = model
+
+    if not mdl:
+        raise ValueError("No model selected. Pick one in Settings -> LLM Provider.")
+
+    # Make sure the backend is reachable (no-op / cheap when it already is).
+    provider.start()  # may raise FileNotFoundError/RuntimeError
+
+    return provider.chat(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        model=mdl,
+        temperature=temperature,
+        stream=stream,
     )
-
-    for _ in range(timeout):
-        try:
-            requests.get(base_url, timeout=2)
-            print("[Ollama] Server is up.")
-            return
-        except requests.exceptions.ConnectionError:
-            time.sleep(1)
-
-    raise RuntimeError("Bundled Ollama server did not start in time.")
-
-
-def ensure_model_available(model: str = MODEL, base_url: str = OLLAMA_BASE) -> None:
-    """
-    Hlper function to check if the model is present on the system.
-    """
-    resp = requests.get(f"{base_url}/api/tags", timeout=5)
-    resp.raise_for_status()
-    local_models = [m["name"] for m in resp.json().get("models", [])]
-
-    if any(model == m or m.startswith(f"{model}:") for m in local_models):
-        return
-
-    print(f"[Ollama] Model '{model}' not found - pulling into {get_models_dir()} ...")
-    ollama_path = get_ollama_binary_path()
-    env = os.environ.copy()
-    env["OLLAMA_MODELS"] = str(get_models_dir())
-    subprocess.run([str(ollama_path), "pull", model], check=True, env=env)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +154,7 @@ When discussing a specific stock:
 If asked for investment advice, explain that you can teach the concepts, interpret market data, and discuss strategies, but investment decisions are the user's responsibility.
 If information is missing or uncertain, say so instead of guessing.
 Your goal is to help users become informed and independent learners.
-"""
+""",
 }
 
 
@@ -253,9 +215,6 @@ def generate_explanation(file_name: str) -> Recommendation:
     if not json_path.exists():
         raise FileNotFoundError(f"Error: Could not find JSON file at: {json_path}")
 
-    if not client:
-        raise ValueError("Error: ollama client is not initialized")
-
     with open(json_path, "r") as f:
         recommendations_data = json.load(f) # as JsonRecommendation
 
@@ -278,7 +237,7 @@ def generate_explanation(file_name: str) -> Recommendation:
         print(f"Processing explanation for {ticker} ({action})...")
 
         user_prompt = build_user_prompt(allocation, portfolio_context)
-        explanation = client.chat(SYSTEM_PROMPTS["RECOMMENDATIONS"], user_prompt)
+        explanation = chat(SYSTEM_PROMPTS["RECOMMENDATIONS"], user_prompt)
 
         response.append(Explanation(ticker, action, explanation))
 
@@ -287,13 +246,17 @@ def generate_explanation(file_name: str) -> Recommendation:
 
     return Recommendation(**data)
 
-def handle_chat_interaction(user_question: str) -> str:
+def handle_chat_interaction(
+    user_question: str,
+    model: Optional[str] = None,
+    provider_id: Optional[str] = None,
+) -> str:
     """
     Receives questions from a user and processes them using the CHAT rules.
     """
-    if not client:
-        raise ValueError("Error: ollama client is not initialized")
-
-    response = client.chat(SYSTEM_PROMPTS["CHAT"], user_question)
-
-    return response
+    return chat(
+        SYSTEM_PROMPTS["CHAT"],
+        user_question,
+        model=model,
+        provider_id=provider_id,
+    )

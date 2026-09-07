@@ -4,7 +4,17 @@ from pydantic import BaseModel
 from typing import List, Optional
 import traceback
 
-from llm.main import generate_explanation, initialize_ollama, handle_chat_interaction
+import requests
+
+from llm.main import (
+    generate_explanation,
+    get_active,
+    handle_chat_interaction,
+    initialize_ollama,
+    list_models,
+    set_active,
+)
+from llm.providers import get_provider, list_providers
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
 from config import TICKERS
 
@@ -27,9 +37,16 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
+    # Optional per-request overrides (fall back to the active provider/model).
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 class ChatResponse(BaseModel):
     reply: str
+
+class SetModelRequest(BaseModel):
+    provider: str = "ollama"
+    model: str
 
 class TrainRequest(BaseModel):
     tickers: Optional[List[str]] = None
@@ -77,9 +94,63 @@ def generate_recommendation() -> str:
 def health():
     return {"status": "ok"}
 
+# ---------------------------------------------------------------------------
+# LLM provider / model management
+# ---------------------------------------------------------------------------
+@app.get("/llm/providers")
+def get_llm_providers():
+    """Providers the app knows about, plus which one is active."""
+    return {"active": get_active(), "providers": list_providers()}
+
+@app.get("/llm/models")
+def get_llm_models(provider: str = "ollama"):
+    """Models downloaded/available for a given provider."""
+    try:
+        models = list_models(provider)
+    except ValueError as e:  # stub provider / not wired up
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotImplementedError as e:  # defensive: stubs
+        raise HTTPException(status_code=400, detail=str(e))
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Cannot reach the '{provider}' backend: {e}",
+        )
+
+    active = get_active()
+    ollama_running = get_provider("ollama").is_available()
+    return {
+        "provider": provider,
+        "current_model": active["model"] if active["provider"] == provider else None,
+        "ollama_running": ollama_running,
+        "models": models,
+    }
+
+@app.post("/llm/model")
+def set_llm_model(req: SetModelRequest):
+    """Switch the active LLM provider/model at runtime."""
+    try:
+        active = set_active(req.provider, req.model)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:  # provider not wired up yet
+        raise HTTPException(status_code=400, detail=str(e))
+    except LookupError as e:  # model not downloaded
+        raise HTTPException(status_code=404, detail=str(e))
+    except (requests.exceptions.ConnectionError, RuntimeError) as e:
+        raise HTTPException(status_code=503, detail=f"LLM backend unreachable: {e}")
+    return {"status": "success", "active": active}
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    reply = handle_chat_interaction(req.message)
+    try:
+        reply = handle_chat_interaction(
+            req.message, model=req.model, provider_id=req.provider
+        )
+    except ValueError as e:  # provider/model not usable
+        raise HTTPException(status_code=400, detail=str(e))
+    except (requests.exceptions.ConnectionError, RuntimeError) as e:
+        raise HTTPException(status_code=503, detail=f"LLM backend unreachable: {e}")
     return ChatResponse(reply=reply)
 
 @app.post("/train", response_model=TrainResponse)
