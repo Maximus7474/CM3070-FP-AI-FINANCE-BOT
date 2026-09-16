@@ -1,22 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/data";
 import { SETTINGS_KEYS, settingsRepo } from "@/lib/db/settings";
+import type { LlmProviderInfo, OllamaModelInfo } from "@/types";
 
-export interface LlmProviderInfo {
-  id: string;
-  name: string;
-  available: boolean;
-  status: boolean;
-  setup_hint: string;
-}
-
-export interface OllamaModelInfo {
-  name: string;
-  size: number | null;
-  parameter_size: string | null;
-  quantization_level: string | null;
-  family: string | null;
-}
+export type { LlmProviderInfo, OllamaModelInfo } from "@/types";
 
 export const DEFAULT_LLM_PROVIDER = "ollama";
 export const DEFAULT_LLM_MODEL = "0xroyce/plutus";

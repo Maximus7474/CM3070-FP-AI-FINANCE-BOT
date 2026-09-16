@@ -1,10 +1,5 @@
 import { getDb } from "./client";
-
-export interface AppSetting {
-  key: string;
-  value: string | null;
-  updated_at: number;
-}
+import type { AppSetting } from "@/types";
 
 export const SETTINGS_KEYS = {
   llmProvider: "llm_provider",

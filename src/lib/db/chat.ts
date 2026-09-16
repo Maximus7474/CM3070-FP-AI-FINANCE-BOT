@@ -1,26 +1,6 @@
 import { generateId } from "../utils";
 import { getDb } from "./client";
-
-export interface Channel {
-  id: string;
-  name: string;
-  created_at: number;
-}
-
-export interface Conversation {
-  id: string;
-  channel_id: string;
-  title: string | null;
-  created_at: number;
-}
-
-export interface StoredMessage {
-  id: string;
-  conversation_id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  created_at: number;
-}
+import type { Channel, Conversation, StoredMessage } from "@/types";
 
 export const channelsRepo = {
   async list(): Promise<Channel[]> {

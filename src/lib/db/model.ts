@@ -1,14 +1,6 @@
 import { generateId } from "../utils";
 import { getDb } from "./client";
-
-export interface TrainedModel {
-  id: string;
-  model_name: string;
-  tickers: string;
-  start_date: string;
-  end_date: string;
-  created_at: number;
-}
+import type { TrainedModel } from "@/types";
 
 export const modelsRepo = {
   async list(): Promise<TrainedModel[]> {
