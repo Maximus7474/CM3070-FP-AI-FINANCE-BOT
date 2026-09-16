@@ -1,6 +1,7 @@
-import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon } from "lucide-react"
+import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon, GraduationCap } from "lucide-react"
 import Chat from "./chat";
 import Evaluation from "./eval";
+import Learn from "./learn/learn";
 import type { NavElement } from "@/types";
 import Settings from "./settings";
 
@@ -34,6 +35,16 @@ export default [
     ),
     page: (
       <Evaluation />
+    ),
+  },
+  {
+    title: "Learn",
+    url: "/learn",
+    icon: (
+      <GraduationCap />
+    ),
+    page: (
+      <Learn />
     ),
   },
   {
