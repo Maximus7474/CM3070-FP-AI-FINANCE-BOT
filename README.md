@@ -48,6 +48,33 @@ The app depends on [Ollama](https://ollama.com) and the `0xroyce/plutus` model a
 
 Note: the produced installer is large (several hundred MB) because the Python sidecar bundles PyTorch and the reinforcement-learning stack, and the first app launch is slower than usual while it extracts.
 
+## Running the tests
+
+The Python engine (`src-py/`) ships with a pytest suite covering the connection points between its modules: storage/path handling, market-data interpretation and its fallbacks, the allocations -> `recommendations.json` structure, per-feature system-prompt attribution, and the FastAPI endpoints.
+
+Install the test dependency, the runtime stack from `requirements.txt` is reused, so run this in the same environment the sidecar uses (on `src-py/build.bat`-created venvs, activate it first):
+
+```sh
+pip install -r src-py/requirements-dev.txt
+```
+
+Run the suite from the project root:
+
+```sh
+python -m pytest src-py/tests
+```
+
+or from inside the engine directory (where `pytest.ini` also applies):
+
+```sh
+cd src-py
+python -m pytest
+```
+
+To run a single module, pass its path, e.g. `python -m pytest src-py/tests/test_recommendations_schema.py`.
+
+The suite is fully offline: yfinance, Ollama and Wikipedia are replaced by test doubles, so no network access or running LLM backend is required, and the run finishes in a few seconds.
+
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
