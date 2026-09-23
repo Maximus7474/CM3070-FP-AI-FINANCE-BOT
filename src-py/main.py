@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import traceback
-
 import requests
 
 from llm.main import (
@@ -11,11 +10,13 @@ from llm.main import (
     handle_chat_interaction,
     initialize_ollama,
     list_models,
+    review_quiz_answers,
     set_active,
 )
 from llm.learn import generate_flashcards, generate_guide
 from llm.providers import get_provider, list_providers
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
+from quiz.main import generate_quiz, strip_correct_answers
 from config import TICKERS
 
 app = FastAPI()
@@ -85,7 +86,16 @@ class EvaluateResponse(BaseModel):
     json_path: str
     data: dict
 
-# ToDo: integrate into a new page for handlign recommendations
+class QuizAnswer(BaseModel):
+    question_id: str
+    answer: str = ""
+
+class QuizReviewRequest(BaseModel):
+    answers: list[QuizAnswer]
+    # Optional per-request overrides (fall back to the active provider/model).
+    provider: str | None = None
+    model: str | None = None
+
 def generate_recommendation() -> str:
     data = generate_explanation("recommendations.json")
 
@@ -209,6 +219,43 @@ def api_train_model(req: TrainRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+@app.get("/quiz/generate")
+def api_generate_quiz():
+    """Builds a data-grounded quiz from the latest recommendations.json."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"status": "success", "questions": strip_correct_answers(questions)}
+
+
+@app.post("/quiz/review")
+def api_review_quiz(req: QuizReviewRequest):
+    """Reviews the user's quiz answers against the RL agent's output via the LLM."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        review = review_quiz_answers(
+            questions,
+            [a.model_dump() for a in req.answers],
+            model=req.model,
+            provider_id=req.provider,
+        )
+    except ValueError as e:  # provider/model not usable
+        raise HTTPException(status_code=400, detail=str(e))
+    except (requests.exceptions.RequestException, RuntimeError) as e:
+        raise HTTPException(status_code=503, detail=f"LLM backend unreachable: {e}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Quiz review failed: {str(e)}")
+
+    return {"status": "success", "review": review}
+
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 def api_evaluate_model(req: EvaluateRequest):

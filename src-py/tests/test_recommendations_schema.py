@@ -11,6 +11,7 @@ from _schema import (
     ALLOCATION_KEYS,
     BACKTEST_OPTIONAL_KEYS,
     BACKTEST_REQUIRED_KEYS,
+    EVOLUTION_KEYS,
     TOP_LEVEL_KEYS,
     assert_valid_recommendations_payload,
 )
@@ -56,6 +57,9 @@ def _stub_metrics():
         "bh_return_pct": 9.0,
         "sharpe": 1.1,
         "max_drawdown": 7.5,
+        # Raw daily-return paths consumed by build_evolution_curves.
+        "tr_rl": {"2025-01-02": 0.02, "2025-01-03": -0.01, "2025-01-06": 0.005},
+        "tr_bh": {"2025-01-02": 0.015, "2025-01-03": -0.008, "2025-01-06": 0.004},
     }
 
 
@@ -86,7 +90,8 @@ def test_generate_recommendations_writes_a_schema_valid_file(
         require_alpha_margin=True,
         max_weight_pct=config.MAX_WEIGHT * 100,
     )
-    assert set(payload) == TOP_LEVEL_KEYS
+    # The current producer also appends the evolution curves block.
+    assert set(payload) == TOP_LEVEL_KEYS | {"evolution"}
     assert set(payload["backtest_summary"]) == BACKTEST_REQUIRED_KEYS | BACKTEST_OPTIONAL_KEYS
 
 

@@ -1,8 +1,9 @@
-import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon, GraduationCap } from "lucide-react"
+import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon, ChartSplineIcon, GraduationCap } from "lucide-react"
+import type { NavElement } from "@/types";
 import Chat from "./chat";
 import Evaluation from "./eval";
+import Predictions from "./predict";
 import Learn from "./learn/learn";
-import type { NavElement } from "@/types";
 import Settings from "./settings";
 
 export default [
@@ -38,13 +39,23 @@ export default [
     ),
   },
   {
+    title: "Predictions",
+    url: "/predict",
+    icon: (
+      <ChartSplineIcon />
+    ),
+    page: (
+      <Predictions />
+    ),
+  },
+  {
     title: "Learn",
     url: "/learn",
     icon: (
       <GraduationCap />
     ),
     page: (
-      <Learn />
+        <Learn />
     ),
   },
   {

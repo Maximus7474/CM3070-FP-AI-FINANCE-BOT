@@ -51,6 +51,15 @@ BACKTEST_REQUIRED_KEYS = {
 }
 # Written by the current producer but absent from the committed sample.
 BACKTEST_OPTIONAL_KEYS = {"alpha_margin"}
+# Equity/drawdown curves written by the current producer but absent from the
+# committed sample.
+EVOLUTION_KEYS = {
+    "dates",
+    "rl_value",
+    "bh_value",
+    "rl_drawdown",
+    "bh_drawdown",
+}
 ALLOCATION_KEYS = {
     "ticker",
     "action",
@@ -87,10 +96,34 @@ def assert_valid_recommendations_payload(
     (``config.MAX_WEIGHT * 100``).
     """
     assert isinstance(payload, dict), "payload must be a JSON object"
-    assert set(payload) == TOP_LEVEL_KEYS, (
-        "unexpected top-level keys: "
-        f"{sorted(set(payload) ^ TOP_LEVEL_KEYS)}"
+    # `evolution` (equity/drawdown curves) is written by the current producer
+    # but absent from the committed sample, so it is allowed but not required.
+    assert TOP_LEVEL_KEYS <= set(payload), (
+        "payload missing top-level keys: "
+        f"{sorted(TOP_LEVEL_KEYS - set(payload))}"
     )
+    unexpected_top = set(payload) - TOP_LEVEL_KEYS - {"evolution"}
+    assert not unexpected_top, (
+        "unexpected top-level keys: "
+        f"{sorted(unexpected_top)}"
+    )
+
+    # The current producer appends an `evolution` block (equity/drawdown
+    # curves); the committed sample predates it.
+    evolution = payload.get("evolution")
+    if evolution is not None:
+        assert isinstance(evolution, dict), "evolution must be an object"
+        assert set(evolution) == EVOLUTION_KEYS, (
+            "evolution keys mismatch: "
+            f"{sorted(set(evolution) ^ EVOLUTION_KEYS)}"
+        )
+        lengths = {len(evolution[key]) for key in EVOLUTION_KEYS}
+        assert len(lengths) == 1, "evolution arrays must share one length"
+        for value in evolution["dates"]:
+            assert isinstance(value, str) and value, "evolution.dates must contain date strings"
+        for key in EVOLUTION_KEYS - {"dates"}:
+            for value in evolution[key]:
+                assert _is_number(value), f"evolution.{key} must contain finite numbers"
 
     assert _is_number(payload["budget"]), "budget must be a finite number"
     assert payload["budget"] > 0, "budget must be positive"

@@ -40,13 +40,15 @@ export const TrainModel = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-    function toggleTicker(tickerValue: string) {
-      setSelectedTickers((prev) =>
-        prev.includes(tickerValue)
-          ? prev.filter((t) => t !== tickerValue)
-          : [...prev, tickerValue]
-      );
-    }
+  function toggleTicker(tickerValue: string) {
+    // ToDo: backend needs to be able to better handle multiple tickers
+    // setSelectedTickers((prev) =>
+    //   prev.includes(tickerValue)
+    //     ? prev.filter((t) => t !== tickerValue)
+    //     : [...prev, tickerValue]
+    // );
+    setSelectedTickers([tickerValue]);
+  }
 
   async function handleTrain(e: React.SubmitEvent) {
     e.preventDefault();
