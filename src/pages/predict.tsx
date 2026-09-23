@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import {
   BrainCircuitIcon,
+  CalendarRange,
   CircleCheckIcon,
   CircleXIcon,
   SparklesIcon,
@@ -47,8 +48,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/data";
-import { modelsRepo, type TrainedModel } from "@/lib/db/model";
-import { Allocation, PredictionResult, QuizQuestion, QuizReview, StatusState } from "@/types";
+import { modelsRepo } from "@/lib/db/model";
+import { DEFAULT_LLM_PROVIDER } from "@/hooks/use-llm";
+import { SETTINGS_KEYS, settingsRepo } from "@/lib/db/settings";
+import type { Allocation, PredictionResult, QuizQuestion, QuizReview, StatusState, TrainedModel } from "@/types";
 
 const chartConfig = {
   rl: { label: "RL Agent", color: "#06b6d4" },
@@ -229,11 +232,18 @@ export default function Predictions() {
   async function submitQuiz() {
     if (reviewing) return;
 
+    const [savedModel, savedProvider] = await Promise.all([
+      settingsRepo.get(SETTINGS_KEYS.llmModel),
+      settingsRepo.get(SETTINGS_KEYS.llmProvider),
+    ]);
+
     const payload = {
       answers: Object.entries(answers).map(([question_id, answer]) => ({
         question_id,
         answer,
       })),
+      model: savedModel ?? undefined,
+      provider: savedProvider ?? DEFAULT_LLM_PROVIDER,
     };
 
     setReviewing(true);
@@ -392,6 +402,17 @@ export default function Predictions() {
 
         {prediction && summary && (
           <>
+            {/* evaluated period */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarRange className="h-4 w-4 text-cyan-600" />
+              <span>
+                Evaluated period:{" "}
+                <span className="font-medium text-foreground">
+                  {prediction.eval_period}
+                </span>
+              </span>
+            </div>
+
             {/* metrics */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div className="rounded-lg border p-3">

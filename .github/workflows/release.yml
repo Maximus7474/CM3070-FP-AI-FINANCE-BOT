@@ -1,0 +1,91 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build portable Windows exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build app
+        run: bun run tauri build --no-bundle
+
+      - name: Stage portable files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "portable" | Out-Null
+          Copy-Item "src-tauri/target/release/financial-advisor-app.exe" "portable/"
+          # The Python backend is a Tauri sidecar: it must sit next to the main
+          # executable (Tauri resolves it there at runtime), so ship it alongside.
+          Copy-Item "src-tauri/binaries/app-x86_64-pc-windows-msvc.exe" "portable/"
+
+      - name: Create zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "portable/*" -DestinationPath "financial-advisor-app-$env:GITHUB_REF_NAME-windows-x64.zip"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: financial-advisor-app-*.zip
+          body: |
+            Portable build for Windows 64-bit — no installer needed.
+
+            ## English
+
+            **Run it**
+            1. Download and extract `financial-advisor-app-${{ github.ref_name }}-windows-x64.zip`.
+            2. Double-click `financial-advisor-app.exe`.
+               > Keep `app-x86_64-pc-windows-msvc.exe` in the same folder — it is the AI backend the app launches at startup.
+
+            **First-time setup (once)**
+            1. Install [Ollama](https://ollama.com/download) — it starts in the system tray.
+            2. Open a terminal and run `ollama pull 0xroyce/plutus` (several GB, required).
+            3. Launch the app. First launch is slow while the backend initializes.
+
+            > If Windows SmartScreen warns "Windows protected your PC", click **More info → Run anyway** — this build is unsigned.
+
+            ---
+
+            ## Français
+
+            **Exécution**
+            1. Téléchargez et extrayez `financial-advisor-app-${{ github.ref_name }}-windows-x64.zip`.
+            2. Double-cliquez sur `financial-advisor-app.exe`.
+               > Gardez `app-x86_64-pc-windows-msvc.exe` dans le même dossier — c'est le moteur IA que l'application lance au démarrage.
+
+            **Configuration initiale (une seule fois)**
+            1. Installez [Ollama](https://ollama.com/download) — il démarre dans la barre d'état système.
+            2. Ouvrez un terminal et exécutez `ollama pull 0xroyce/plutus` (plusieurs Go, obligatoire).
+            3. Lancez l'application. Le premier démarrage est lent pendant l'initialisation du moteur.
+
+            > Si Windows SmartScreen affiche « Windows a protégé votre PC », cliquez sur **Plus d'infos → Exécuter quand même** — cette version n'est pas signée.
