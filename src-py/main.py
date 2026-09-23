@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import traceback
+import requests
 
 from llm.main import (
     generate_explanation,
@@ -12,7 +13,6 @@ from llm.main import (
     review_quiz_answers,
     set_active,
 )
-import requests
 from llm.learn import generate_flashcards, generate_guide
 from llm.providers import get_provider, list_providers
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
