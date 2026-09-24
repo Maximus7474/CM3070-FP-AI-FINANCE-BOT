@@ -100,6 +100,7 @@ The content is organized as follows:
     chat.tsx
     eval.tsx
     index.tsx
+    predict.tsx
   App.css
   App.tsx
   main.tsx
@@ -113,6 +114,9 @@ The content is organized as follows:
     main.py
     providers.py
     retrieval.py
+  quiz/
+    __init__.py
+    main.py
   rl_pipeline/
     __init__.py
     backtest.py
@@ -120,6 +124,17 @@ The content is organized as follows:
     environment.py
     main.py
     rl_agent.py
+  tests/
+    _fakes.py
+    _schema.py
+    conftest.py
+    test_api_errors.py
+    test_data_and_environment.py
+    test_llm_validation.py
+    test_prompts.py
+    test_recommendations_schema.py
+    test_rl_allocations.py
+    test_storage_and_config.py
   utils/
     __init__.py
     path.py
@@ -127,7 +142,9 @@ The content is organized as follows:
   build.bat
   config.py
   main.py
+  pytest.ini
   recommendations.json
+  requirements-dev.txt
   requirements.txt
 
 [src-tauri]/
@@ -3933,165 +3950,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 }
 ````
 
-## File: src/components/chat-markdown.tsx
-````typescript
-import { memo } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import { cn } from "@/lib/utils";
-
-/**
- * Renders LLM/user message content as proper HTML:
- * - remark-breaks: single newlines become <br> (LLMs rarely emit blank lines
- *   between every sentence, so soft breaks must be preserved).
- * - remark-gfm: tables, strikethrough, task lists, autolinks.
- * - Every block element is explicitly styled so it looks right inside a
- *   chat bubble (and in dark mode) instead of using browser defaults.
- *
- * Only http(s)/mailto links are kept; every other URL scheme is stripped
- * so a crafted message can't produce javascript:/vbscript: links.
- */
-const urlTransform = (url: string) =>
-  /^(https?:|mailto:)/i.test(url) ? url : undefined;
-
-const components: Components = {
-  p: ({ children }) => (
-    <p className="whitespace-normal last:mb-0 [&:not(:last-child)]:mb-2">
-      {children}
-    </p>
-  ),
-  h1: ({ children }) => (
-    <h1 className="mb-2 text-lg font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-3">
-      {children}
-    </h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="mb-1.5 text-base font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-3">
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="mb-1.5 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2.5">
-      {children}
-    </h3>
-  ),
-  h4: ({ children }) => (
-    <h4 className="mb-1 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
-      {children}
-    </h4>
-  ),
-  h5: ({ children }) => (
-    <h5 className="mb-1 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
-      {children}
-    </h5>
-  ),
-  h6: ({ children }) => (
-    <h6 className="mb-1 text-xs font-semibold uppercase tracking-wide leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
-      {children}
-    </h6>
-  ),
-  ul: ({ children }) => (
-    <ul className="my-1 list-disc space-y-0.5 pl-5 last:mb-0 [&:not(:last-child)]:mb-1.5">
-      {children}
-    </ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="my-1 list-decimal space-y-0.5 pl-5 last:mb-0 [&:not(:last-child)]:mb-1.5">
-      {children}
-    </ol>
-  ),
-  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-  strong: ({ children }) => (
-    <strong className="font-semibold">{children}</strong>
-  ),
-  em: ({ children }) => <em className="italic">{children}</em>,
-  del: ({ children }) => <del className="line-through opacity-70">{children}</del>,
-  a: ({ children, href }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-medium underline underline-offset-2"
-    >
-      {children}
-    </a>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className="my-1.5 border-l-2 border-border pl-3 opacity-80 last:mb-0 [&:not(:last-child)]:mb-1.5">
-      {children}
-    </blockquote>
-  ),
-  hr: () => <hr className="my-2 border-border" />,
-  table: ({ children }) => (
-    <div className="my-1.5 max-w-full overflow-x-auto last:mb-0 [&:not(:last-child)]:mb-1.5">
-      <table className="w-full border-collapse text-xs">{children}</table>
-    </div>
-  ),
-  thead: ({ children }) => (
-    <thead className="border-b border-border">{children}</thead>
-  ),
-  tbody: ({ children }) => <tbody>{children}</tbody>,
-  tr: ({ children }) => (
-    <tr className="border-b border-border/60 last:border-b-0">{children}</tr>
-  ),
-  th: ({ children }) => (
-    <th className="px-2 py-1 text-left font-semibold">{children}</th>
-  ),
-  td: ({ children }) => (
-    <td className="px-2 py-1 align-top">{children}</td>
-  ),
-  code: ({ className, children }) => {
-    const isBlock =
-      typeof className === "string" && className.includes("language-");
-    if (isBlock) {
-      return (
-        <code className="block overflow-x-auto bg-muted/70 p-2.5 font-mono text-xs leading-relaxed">
-          {children}
-        </code>
-      );
-    }
-    return (
-      <code className="rounded bg-muted/70 px-1 py-0.5 font-mono text-[0.85em]">
-        {children}
-      </code>
-    );
-  },
-  pre: ({ children }) => (
-    <pre className="my-1.5 max-w-full overflow-x-auto rounded-md border border-border bg-muted/40 p-0 last:mb-0 [&:not(:last-child)]:mb-1.5 [&_code]:block [&_code]:bg-transparent [&_code]:px-2.5 [&_code]:py-2 [&_code]:rounded-none [&_code]:text-xs">
-      {children}
-    </pre>
-  ),
-  img: ({ src, alt }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} className="max-w-full rounded-md" />
-  ),
-  input: (props) => (
-    <input {...props} disabled className="mr-1 align-middle" />
-  ),
-};
-
-export const ChatMarkdown = memo(function ChatMarkdown({
-  content,
-  className,
-}: {
-  content: string;
-  className?: string;
-}) {
-  return (
-    <div className={cn("text-sm leading-relaxed break-words", className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        urlTransform={urlTransform}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
-});
-````
-
 ## File: src/components/nav-user.tsx
 ````typescript
 import {
@@ -4262,6 +4120,857 @@ export async function getDb(): Promise<Database> {
     dbInstance = await Database.load("sqlite:app.db");
   }
   return dbInstance;
+}
+````
+
+## File: src/lib/data.ts
+````typescript
+export const API_BASE_URL = "http://127.0.0.1:8721";
+
+export const TICKER_OPTIONS = [
+  { label: "Apple (AAPL)", value: "AAPL" },
+  { label: "Microsoft (MSFT)", value: "MSFT" },
+  { label: "Google (GOOGL)", value: "GOOGL" },
+  { label: "NVIDIA (NVDA)", value: "NVDA" },
+  { label: "Tesla (TSLA)", value: "TSLA" },
+  { label: "Amazon (AMZN)", value: "AMZN" },
+  { label: "Meta (META)", value: "META" },
+];
+````
+
+## File: src/pages/settings/index.tsx
+````typescript
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MainSettings } from "./main-settings";
+import { TrainModel } from "./train-model";
+import { ViewModels } from "./view-models";
+
+export default function Settings() {
+  return (
+    <div className="space-y-6 container mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          System Settings
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure application preferences, train reinforcement learning agents, and view trained models.
+        </p>
+      </div>
+
+      <Tabs defaultValue="main" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="main">Main Settings</TabsTrigger>
+          <TabsTrigger value="train">Train Agent</TabsTrigger>
+          <TabsTrigger value="models">View Trained Models</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="main">
+          <MainSettings />
+        </TabsContent>
+
+        <TabsContent value="train">
+          <TrainModel />
+        </TabsContent>
+
+        <TabsContent value="models">
+          <ViewModels />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+````
+
+## File: src/pages/settings/view-models.tsx
+````typescript
+import { useEffect, useState } from "react";
+import { modelsRepo, TrainedModel } from "@/lib/db/model";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export const ViewModels = () => {
+  const [models, setModels] = useState<TrainedModel[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  async function loadModels() {
+    setLoadingModels(true);
+    try {
+      const data = await modelsRepo.list();
+      setModels(data);
+    } catch (e) {
+      console.error("Failed to load models", e);
+    } finally {
+      setLoadingModels(false);
+    }
+  }
+
+  async function handleDeleteModel(id: string) {
+    try {
+      await modelsRepo.delete(id);
+      await loadModels();
+    } catch (e) {
+      console.error("Failed to delete model", e);
+    }
+  }
+
+  useEffect(() => {
+    loadModels();
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Trained Models Database</CardTitle>
+        <CardDescription>
+          List of trained reinforcement learning models stored on this device.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loadingModels ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Loading models...</p>
+        ) : models.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No models found in database.</p>
+        ) : (
+          <div className="space-y-3">
+            {models.map((model) => (
+              <div
+                key={model.id}
+                className="flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-sm">{model.model_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tickers: <span className="text-foreground font-mono">{model.tickers}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Range: {model.start_date} to {model.end_date}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Created: {new Date(model.created_at).toLocaleString()}
+                  </p>
+                </div>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteModel(model.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+````
+
+## File: src-py/llm/__init__.py
+````python
+
+````
+
+## File: src-py/quiz/__init__.py
+````python
+
+````
+
+## File: src-py/quiz/main.py
+````python
+import json
+from pathlib import Path
+from typing import List, Optional, Union, Any
+
+from rl_pipeline.main import JsonRecommendation
+from config import OUTPUT_DIR
+
+RECOMMENDATIONS_FILE = "recommendations.json"
+
+
+def load_recommendations(filename: str = RECOMMENDATIONS_FILE) -> dict[str, Any]:
+    """Loads the latest evaluation payload generated by the RL pipeline."""
+    path = OUTPUT_DIR / filename
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No recommendations found at {path}. Run an evaluation first."
+        )
+
+    with open(path, "r") as f:
+        data: dict[str, Any] = json.load(f)
+        return data
+
+
+def generate_quiz(recs: JsonRecommendation | None = None) -> list[dict[str, str | list[str]]]:
+    """
+    Builds a quiz from the RL agent's output.
+
+    The questions are derived from the recommendations payload so that the
+    review step can regenerate the same questions (and correct answers)
+    server-side without trusting the client.
+    """
+    if recs is None:
+        recs = load_recommendations()
+
+    allocations = recs.get("allocations", [])
+    summary = recs.get("backtest_summary", {})
+
+    questions: list[dict[str, str | list[str]]] = []
+
+    # One question per top allocation (capped to keep the quiz short).o
+    for i, alloc in enumerate(allocations[:3]):
+        ticker = alloc.get("ticker")
+        action = alloc.get("action")
+
+        questions.append({
+            "id": f"action-{i}",
+            "type": "mcq",
+            "question": f"Which action did the RL agent recommend for {ticker}?",
+            "options": ["BUY", "SELL", "HOLD"],
+            "correct": action,
+        })
+
+    # Benchmark comparison question.
+    rl_ret = summary.get("rl_return_pct", 0)
+    bh_ret = summary.get("bh_return_pct", 0)
+
+    if rl_ret > bh_ret:
+        correct = "Outperformed"
+    elif rl_ret < bh_ret:
+        correct = "Underperformed"
+    else:
+        correct = "Roughly equal"
+
+    questions.append({
+        "id": "benchmark",
+        "type": "mcq",
+        "question": (
+            "Over the evaluation period, how did the RL agent compare to a "
+            "simple buy-and-hold benchmark?"
+        ),
+        "options": ["Outperformed", "Underperformed", "Roughly equal"],
+        "correct": correct,
+    })
+
+    # Open-ended analysis question about the highest-weighted allocation.
+    if allocations:
+        top = allocations[0]
+        ticker = top.get("ticker")
+        action = top.get("action")
+
+        questions.append({
+            "id": "analysis-0",
+            "type": "open",
+            "question": (
+                f"In your own words, why might the agent have recommended "
+                f"{action} for {ticker}?"
+            ),
+            "context": (
+                f"{ticker}: RSI {top.get('rsi')}, MACD histogram "
+                f"{top.get('macd_hist')}, Bollinger Band % {top.get('bb_pct')}, "
+                f"{top.get('pct_of_budget')}% of the budget."
+            ),
+        })
+
+    return questions
+
+
+def strip_correct_answers(questions: List[dict]) -> List[dict]:
+    """Removes the `correct` field so answers are not leaked to the client."""
+    return [
+        {k: v for k, v in q.items() if k != "correct"}
+        for q in questions
+    ]
+
+
+def build_review_prompt(questions: List[dict], answers: List[dict]) -> str:
+    """Formats the quiz, correct answers, and user answers for the LLM."""
+    answer_map = {
+        a.get("question_id"): a.get("answer", "")
+        for a in answers
+    }
+
+    blocks = []
+    for q in questions:
+        blocks.append({
+            "id": q.get("id"),
+            "type": q.get("type"),
+            "question": q.get("question"),
+            "options": q.get("options"),
+            "correct_answer": q.get("correct"),
+            "user_answer": answer_map.get(q.get("id"), "(no answer)"),
+        })
+
+    return json.dumps(blocks, indent=2, ensure_ascii=False)
+````
+
+## File: src-py/rl_pipeline/__init__.py
+````python
+
+````
+
+## File: src-py/rl_pipeline/environment.py
+````python
+import math
+import gymnasium as gym
+import numpy as np
+import pandas as pd
+from gymnasium import spaces
+
+from config import BUDGET, LOOKBACK, N_FEAT, FEATURE_COLS, COMMISSION, MAX_WEIGHT
+
+class TradingEnv(gym.Env):
+    """
+    Custom standard multi-stock operational environment tracking cash vectors.
+    """
+    def __init__(self, data: dict[str, pd.DataFrame], budget: float = BUDGET):
+        super().__init__()
+        self.tickers = list(data.keys())
+        self.n = len(self.tickers)
+        self.budget = budget
+
+        idx = None
+        for df in data.values():
+            idx = df.index if idx is None else idx.intersection(df.index)
+            
+        self.dates = sorted(idx)
+
+        self.feat = {t: data[t].loc[self.dates, FEATURE_COLS].values.astype(np.float32) for t in self.tickers}
+        self.closes = {t: data[t].loc[self.dates, "Close"].values.astype(np.float32) for t in self.tickers}
+
+        obs_size = self.n * LOOKBACK * N_FEAT + self.n + 1
+        self.observation_space = spaces.Box(-np.inf, np.inf, (obs_size,), np.float32)
+        self.action_space = spaces.Box(-1.0, 1.0, (self.n,), np.float32)
+        self._reset_state()
+
+    def _reset_state(self):
+        self._i = LOOKBACK
+        self._shares = np.zeros(self.n, np.float32)
+        self._cash = float(self.budget)
+        self._prev_v = float(self.budget)
+
+    def _value(self, i: int) -> float:
+        prices = np.array([self.closes[t][i] for t in self.tickers])
+        
+        return float(self._cash + self._shares @ prices)
+
+    def _obs(self) -> np.ndarray:
+        windows = []
+        for t in self.tickers:
+            w = self.feat[t][self._i - LOOKBACK: self._i]
+            mn = w.min(0, keepdims=True)
+            mx = w.max(0, keepdims=True)
+            windows.append(((w - mn) / (mx - mn + 1e-9)).flatten())
+
+        prices = np.array([self.closes[t][self._i] for t in self.tickers])
+        v = self._value(self._i)
+        weights = (self._shares * prices) / (v + 1e-9)
+        cash_r = np.array([self._cash / (v + 1e-9)], np.float32)
+        
+        return np.concatenate(windows + [weights, cash_r]).astype(np.float32)
+
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        self._reset_state()
+        
+        return self._obs(), {}
+
+    def step(self, action):
+        prices = np.array([self.closes[t][self._i] for t in self.tickers])
+        total = self._value(self._i)
+
+        for i, a in enumerate(action):
+            if a < -0.05 and self._shares[i] > 0:
+                sell = self._shares[i] * abs(float(a))
+                self._cash += (sell * prices[i]) * (1 - COMMISSION)
+                self._shares[i] -= sell
+
+        for i, a in enumerate(action):
+            if a > 0.05:
+                target = min(float(a), MAX_WEIGHT) * total
+                current = self._shares[i] * prices[i]
+                spend = min(max(target - current, 0), self._cash * 0.99)
+                self._shares[i] += spend / (prices[i] + 1e-9)
+                self._cash -= spend * (1 + COMMISSION)
+
+        self._cash = max(self._cash, 0.0)
+        self._i += 1
+        new_v = self._value(self._i)
+        reward = math.log(new_v / (self._prev_v + 1e-9))
+        self._prev_v = new_v
+
+        done = self._i >= len(self.dates) - 1
+
+        return self._obs(), reward, done, False, {}
+````
+
+## File: src-py/utils/__init__.py
+````python
+
+````
+
+## File: src-py/app.spec
+````
+# -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_all
+
+datas, binaries, hiddenimports = collect_all('stable_baselines3')
+
+a = Analysis(
+    ['main.py'],
+    pathex=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='app',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+````
+
+## File: src-py/recommendations.json
+````json
+{
+  "budget": 5000.0,
+  "cash_remaining": 4171.08,
+  "eval_period": "2025-01-01 -> 2026-06-01",
+  "backtest_summary": {
+    "rl_return_pct": 40.08,
+    "bh_return_pct": 40.12,
+    "sharpe": 1.45,
+    "max_drawdown_pct": 17.88
+  },
+  "allocations": [
+    {
+      "ticker": "NVDA",
+      "action": "BUY",
+      "price": 210.89,
+      "shares": 3.9305,
+      "dollar_value": 828.92,
+      "pct_of_budget": 16.6,
+      "rsi": 46.3,
+      "macd_hist": -2.1629,
+      "bb_pct": 0.391
+    },
+    {
+      "ticker": "AAPL",
+      "action": "SELL",
+      "price": 312.06,
+      "shares": 0.0,
+      "dollar_value": 0.0,
+      "pct_of_budget": 0.0,
+      "rsi": 84.3,
+      "macd_hist": 0.6151,
+      "bb_pct": 0.843
+    },
+    {
+      "ticker": "MSFT",
+      "action": "SELL",
+      "price": 450.24,
+      "shares": 0.0,
+      "dollar_value": 0.0,
+      "pct_of_budget": 0.0,
+      "rsi": 71.7,
+      "macd_hist": 1.7733,
+      "bb_pct": 1.366
+    }
+  ]
+}
+````
+
+## File: src/components/chat-markdown.tsx
+````typescript
+import { memo } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import { cn } from "@/lib/utils";
+
+/**
+ * Renders LLM/user message content as proper HTML:
+ * - remark-breaks: single newlines become <br> (LLMs rarely emit blank lines
+ *   between every sentence, so soft breaks must be preserved).
+ * - remark-gfm: tables, strikethrough, task lists, autolinks.
+ * - Every block element is explicitly styled so it looks right inside a
+ *   chat bubble (and in dark mode) instead of using browser defaults.
+ *
+ * Only http(s)/mailto links are kept; every other URL scheme is stripped
+ * so a crafted message can't produce javascript:/vbscript: links.
+ */
+const urlTransform = (url: string) =>
+  /^(https?:|mailto:)/i.test(url) ? url : undefined;
+
+const components: Components = {
+  p: ({ children }) => (
+    <p className="whitespace-normal last:mb-0 [&:not(:last-child)]:mb-2">
+      {children}
+    </p>
+  ),
+  h1: ({ children }) => (
+    <h1 className="mb-2 text-lg font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-3">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mb-1.5 text-base font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-3">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mb-1.5 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2.5">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mb-1 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
+      {children}
+    </h4>
+  ),
+  h5: ({ children }) => (
+    <h5 className="mb-1 text-sm font-semibold leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
+      {children}
+    </h5>
+  ),
+  h6: ({ children }) => (
+    <h6 className="mb-1 text-xs font-semibold uppercase tracking-wide leading-tight first:mt-0 [&:not(:first-child)]:mt-2">
+      {children}
+    </h6>
+  ),
+  ul: ({ children }) => (
+    <ul className="my-1 list-disc space-y-0.5 pl-5 last:mb-0 [&:not(:last-child)]:mb-1.5">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-1 list-decimal space-y-0.5 pl-5 last:mb-0 [&:not(:last-child)]:mb-1.5">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  strong: ({ children }) => (
+    <strong className="font-semibold">{children}</strong>
+  ),
+  em: ({ children }) => <em className="italic">{children}</em>,
+  del: ({ children }) => <del className="line-through opacity-70">{children}</del>,
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-medium underline underline-offset-2"
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="my-1.5 border-l-2 border-border pl-3 opacity-80 last:mb-0 [&:not(:last-child)]:mb-1.5">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-2 border-border" />,
+  table: ({ children }) => (
+    <div className="my-1.5 max-w-full overflow-x-auto last:mb-0 [&:not(:last-child)]:mb-1.5">
+      <table className="w-full border-collapse text-xs">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="border-b border-border">{children}</thead>
+  ),
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => (
+    <tr className="border-b border-border/60 last:border-b-0">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="px-2 py-1 text-left font-semibold">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="px-2 py-1 align-top">{children}</td>
+  ),
+  code: ({ className, children }) => {
+    const isBlock =
+      typeof className === "string" && className.includes("language-");
+    if (isBlock) {
+      return (
+        <code className="block overflow-x-auto bg-muted/70 p-2.5 font-mono text-xs leading-relaxed">
+          {children}
+        </code>
+      );
+    }
+    return (
+      <code className="rounded bg-muted/70 px-1 py-0.5 font-mono text-[0.85em]">
+        {children}
+      </code>
+    );
+  },
+  pre: ({ children }) => (
+    <pre className="my-1.5 max-w-full overflow-x-auto rounded-md border border-border bg-muted/40 p-0 last:mb-0 [&:not(:last-child)]:mb-1.5 [&_code]:block [&_code]:bg-transparent [&_code]:px-2.5 [&_code]:py-2 [&_code]:rounded-none [&_code]:text-xs">
+      {children}
+    </pre>
+  ),
+  img: ({ src, alt }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} className="max-w-full rounded-md" />
+  ),
+  input: (props) => (
+    <input {...props} disabled className="mr-1 align-middle" />
+  ),
+};
+
+export const ChatMarkdown = memo(function ChatMarkdown({
+  content,
+  className,
+}: {
+  content: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("text-sm leading-relaxed break-words", className)}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        urlTransform={urlTransform}
+        components={components}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+});
+````
+
+## File: src/components/nav-main.tsx
+````typescript
+import { useState } from "react";
+import { ChevronRight, Plus, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarSeparator,
+} from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+} from "@/components/ui/collapsible"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { NavElement } from "@/types";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
+import { useChannels } from "@/hooks/use-channel";
+
+export function NavMain({
+  items,
+}: {
+  items: NavElement[]
+}) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            if (item.hidenav) return null;
+            const isActive = location.pathname === item.url;
+
+            if (item.expandable) {
+              return (
+                <ChatNavItem
+                  key={item.title}
+                  item={item}
+                  isActive={isActive}
+                />
+              );
+            }
+
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={isActive}
+                  onClick={() => navigate(item.url)}
+                >
+                  {item.icon}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+function ChatNavItem({
+  item,
+  isActive,
+}: {
+  item: NavElement;
+  isActive: boolean;
+}) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { channels, createChannel, deleteChannel } = useChannels();
+
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isOpen, setIsOpen] = useState(isActive);
+
+  const activeChannelId = searchParams.get("channel") ?? "general";
+
+  function submitNewChannel() {
+    const name = newName.trim();
+    if (name) createChannel(name);
+    setNewName("");
+    setCreating(false);
+
+    navigate(`${item.url}?channel=${encodeURIComponent(name)}`);
+  }
+
+  async function handleDeleteChannel(id: string) {
+    if (!deleteChannel) return;
+
+    await deleteChannel(id);
+
+    if (activeChannelId === id) {
+      const remainingChannels = channels.filter((c) => c.id !== id);
+      const fallbackId = remainingChannels[0]?.id ?? "general";
+      navigate(`${item.url}?channel=${fallbackId}`);
+    }
+  }
+
+  return (
+    <SidebarMenuItem>
+      <Collapsible
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        className="group/collapsible w-full"
+      >
+        <SidebarMenuButton
+          tooltip={item.title}
+          isActive={isActive}
+          onClick={() => setIsOpen((prev) => !prev)}
+        >
+          {item.icon}
+          <span>{item.title}</span>
+          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+        </SidebarMenuButton>
+
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {channels?.map((subItem) => {
+              const isSubItemActive = isActive && activeChannelId === subItem.id;
+
+              return (
+                <SidebarMenuSubItem
+                  key={subItem.id}
+                  className="group/subitem relative flex items-center"
+                >
+                  <SidebarMenuSubButton
+                    isActive={isSubItemActive}
+                    onClick={() => navigate(`${item.url}?channel=${subItem.id}`)}
+                    className="w-full pr-8" /* pr-8 ensures long names don't overlap the action icon */
+                  >
+                    <span className="truncate">{subItem.name}</span>
+                  </SidebarMenuSubButton>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/subitem:opacity-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-opacity"
+                        title="Channel Options"
+                      >
+                        <MoreHorizontal className="size-3.5" />
+                        <span className="sr-only">More options</span>
+                      </button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent side="right" align="start">
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteChannel(subItem.id);
+                        }}
+                      >
+                        <Trash2 className="size-4 mr-2" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuSubItem>
+              );
+            })}
+
+            <SidebarSeparator className="my-1" />
+
+            <SidebarMenuSubItem>
+              {creating ? (
+                <input
+                  autoFocus
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitNewChannel();
+                    if (e.key === "Escape") setCreating(false);
+                  }}
+                  onBlur={submitNewChannel}
+                  placeholder="Channel name..."
+                  className="w-full px-2 py-1 mt-1 text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              ) : (
+                <SidebarMenuSubButton
+                  onClick={() => setCreating(true)}
+                  className="text-muted-foreground mt-1"
+                >
+                  <Plus className="size-3.5 mr-1" />
+                  <span>New channel</span>
+                </SidebarMenuSubButton>
+              )}
+            </SidebarMenuSubItem>
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuItem>
+  );
 }
 ````
 
@@ -4488,21 +5197,6 @@ export const progressRepo = {
 };
 ````
 
-## File: src/lib/data.ts
-````typescript
-export const API_BASE_URL = "http://127.0.0.1:8721";
-
-export const TICKER_OPTIONS = [
-  { label: "Apple (AAPL)", value: "AAPL" },
-  { label: "Microsoft (MSFT)", value: "MSFT" },
-  { label: "Google (GOOGL)", value: "GOOGL" },
-  { label: "NVIDIA (NVDA)", value: "NVDA" },
-  { label: "Tesla (TSLA)", value: "TSLA" },
-  { label: "Amazon (AMZN)", value: "AMZN" },
-  { label: "Meta (META)", value: "META" },
-];
-````
-
 ## File: src/lib/llm-sync.ts
 ````typescript
 import { API_BASE_URL } from "@/lib/data";
@@ -4549,6 +5243,20 @@ export async function syncLlmSettingsOnLaunch(): Promise<void> {
   } catch (e) {
     console.warn("LLM settings sync skipped:", e);
   }
+}
+````
+
+## File: src/lib/utils.ts
+````typescript
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function generateId(): string {
+  return crypto.randomUUID();
 }
 ````
 
@@ -5423,65 +6131,165 @@ function LearnHeader() {
 }
 ````
 
-## File: src/pages/settings/index.tsx
+## File: src/pages/predict.tsx
 ````typescript
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MainSettings } from "./main-settings";
-import { TrainModel } from "./train-model";
-import { ViewModels } from "./view-models";
+import { useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  BrainCircuitIcon,
+  CalendarRange,
+  CircleCheckIcon,
+  CircleXIcon,
+  SparklesIcon,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/data";
+import { modelsRepo } from "@/lib/db/model";
+import { DEFAULT_LLM_PROVIDER } from "@/hooks/use-llm";
+import { SETTINGS_KEYS, settingsRepo } from "@/lib/db/settings";
+import type { Allocation, PredictionResult, QuizQuestion, QuizReview, StatusState, TrainedModel } from "@/types";
 
-export default function Settings() {
+const chartConfig = {
+  rl: { label: "RL Agent", color: "#06b6d4" },
+  bh: { label: "Buy & Hold", color: "#f59e0b" },
+} satisfies ChartConfig;
+
+const ACTION_META = {
+  BUY: { label: "Buy", color: "#10b981" },
+  HOLD: { label: "Hold", color: "#94a3b8" },
+  SELL: { label: "Sell", color: "#ef4444" },
+} as const;
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function formatTick(value: string) {
+  const [y, m] = value.split("-");
+  const month = MONTHS[Number(m) - 1];
+  return month ? `${month} '${y.slice(2)}` : value;
+}
+
+function formatDollar(value: number) {
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}k`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
+function formatPercent(value: number) {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
+function AllocationTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload as {
+    ticker: string;
+    action: keyof typeof ACTION_META;
+    value: number;
+    pct: number;
+    rsi: number;
+    macd_hist: number;
+    bb_pct: number;
+  };
+  const meta = ACTION_META[d.action];
   return (
-    <div className="space-y-6 container mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          System Settings
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure application preferences, train reinforcement learning agents, and view trained models.
-        </p>
+    <div className="min-w-40 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+      <div className="mb-1 flex items-center justify-between gap-3 font-medium">
+        <span>{d.ticker}</span>
+        <span style={{ color: meta.color }}>{meta.label}</span>
       </div>
-
-      <Tabs defaultValue="main" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="main">Main Settings</TabsTrigger>
-          <TabsTrigger value="train">Train Agent</TabsTrigger>
-          <TabsTrigger value="models">View Trained Models</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="main">
-          <MainSettings />
-        </TabsContent>
-
-        <TabsContent value="train">
-          <TrainModel />
-        </TabsContent>
-
-        <TabsContent value="models">
-          <ViewModels />
-        </TabsContent>
-      </Tabs>
+      <div className="space-y-0.5 text-muted-foreground">
+        <div className="flex justify-between gap-3">
+          <span>Value</span>
+          <span className="font-mono">{formatDollar(d.value)}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>Weight</span>
+          <span className="font-mono">{d.pct}%</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>RSI</span>
+          <span className="font-mono">{d.rsi}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>MACD hist</span>
+          <span className="font-mono">{d.macd_hist}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>BB%</span>
+          <span className="font-mono">{d.bb_pct}</span>
+        </div>
+      </div>
     </div>
   );
 }
-````
 
-## File: src/pages/settings/view-models.tsx
-````typescript
-import { useEffect, useState } from "react";
-import { modelsRepo, TrainedModel } from "@/lib/db/model";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-
-export const ViewModels = () => {
+export default function Predictions() {
   const [models, setModels] = useState<TrainedModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<StatusState | null>(null);
+  const [prediction, setPrediction] = useState<PredictionResult | null>(null);
+
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [quizStatus, setQuizStatus] = useState<StatusState | null>(null);
+  const [review, setReview] = useState<QuizReview | null>(null);
 
   async function loadModels() {
     setLoadingModels(true);
     try {
       const data = await modelsRepo.list();
       setModels(data);
+      if (data.length > 0) {
+        setSelectedModel(data[0].model_name);
+      }
     } catch (e) {
       console.error("Failed to load models", e);
     } finally {
@@ -5489,12 +6297,111 @@ export const ViewModels = () => {
     }
   }
 
-  async function handleDeleteModel(id: string) {
+  async function handlePredict() {
+    if (loading) return;
+
+    if (!selectedModel) {
+      setStatus({ type: "error", message: "Please select a model to run predictions." });
+      return;
+    }
+
+    const modelObj = models.find((m) => m.model_name === selectedModel);
+    const tickersList = modelObj?.tickers
+      ? modelObj.tickers.split(",").map((t) => t.trim()).filter(Boolean)
+      : [];
+
+    setLoading(true);
+    setStatus({ type: "info", message: `Running predictions with "${selectedModel}"...` });
+    setPrediction(null);
+    setQuestions([]);
+    setAnswers({});
+    setReview(null);
+    setQuizStatus(null);
+
     try {
-      await modelsRepo.delete(id);
-      await loadModels();
-    } catch (e) {
-      console.error("Failed to delete model", e);
+      const res = await fetch(`${API_BASE_URL}/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_name: selectedModel, tickers: tickersList }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setPrediction(data.data);
+        setStatus({ type: "success", message: "Predictions generated." });
+      } else {
+        throw new Error(data.detail || "Unknown error occurred");
+      }
+    } catch (e: any) {
+      console.error("Prediction failed", e);
+      setStatus({ type: "error", message: `Prediction failed: ${e.message}` });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startQuiz() {
+    if (quizLoading) return;
+    setQuizLoading(true);
+    setQuizStatus(null);
+    setReview(null);
+    setAnswers({});
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/quiz/generate`);
+      const data = await res.json();
+
+      if (res.ok) {
+        setQuestions(data.questions ?? []);
+      } else {
+        throw new Error(data.detail || "Unknown error occurred");
+      }
+    } catch (e: any) {
+      console.error("Failed to load quiz", e);
+      setQuizStatus({ type: "error", message: `Failed to load quiz: ${e.message}` });
+    } finally {
+      setQuizLoading(false);
+    }
+  }
+
+  async function submitQuiz() {
+    if (reviewing) return;
+
+    const [savedModel, savedProvider] = await Promise.all([
+      settingsRepo.get(SETTINGS_KEYS.llmModel),
+      settingsRepo.get(SETTINGS_KEYS.llmProvider),
+    ]);
+
+    const payload = {
+      answers: Object.entries(answers).map(([question_id, answer]) => ({
+        question_id,
+        answer,
+      })),
+      model: savedModel ?? undefined,
+      provider: savedProvider ?? DEFAULT_LLM_PROVIDER,
+    };
+
+    setReviewing(true);
+    setQuizStatus(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/quiz/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setReview(data.review);
+      } else {
+        throw new Error(data.detail || "Unknown error occurred");
+      }
+    } catch (e: any) {
+      console.error("Quiz review failed", e);
+      setQuizStatus({ type: "error", message: `Review failed: ${e.message}` });
+    } finally {
+      setReviewing(false);
     }
   }
 
@@ -5502,59 +6409,548 @@ export const ViewModels = () => {
     loadModels();
   }, []);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Trained Models Database</CardTitle>
-        <CardDescription>
-          List of trained reinforcement learning models stored on this device.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loadingModels ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Loading models...</p>
-        ) : models.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">No models found in database.</p>
-        ) : (
-          <div className="space-y-3">
-            {models.map((model) => (
-              <div
-                key={model.id}
-                className="flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-sm">{model.model_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Tickers: <span className="text-foreground font-mono">{model.tickers}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Range: {model.start_date} to {model.end_date}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Created: {new Date(model.created_at).toLocaleString()}
-                  </p>
-                </div>
+  const equityData = useMemo(() => {
+    if (!prediction) return [];
+    return prediction.evolution.dates.map((date, i) => ({
+      date,
+      rl: prediction.evolution.rl_value[i],
+      bh: prediction.evolution.bh_value[i],
+    }));
+  }, [prediction]);
 
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteModel(model.id)}
-                >
-                  Delete
-                </Button>
-              </div>
-            ))}
+  const drawdownData = useMemo(() => {
+    if (!prediction) return [];
+    return prediction.evolution.dates.map((date, i) => ({
+      date,
+      rl: prediction.evolution.rl_drawdown[i],
+      bh: prediction.evolution.bh_drawdown[i],
+    }));
+  }, [prediction]);
+
+  const allocationData = useMemo(() => {
+    if (!prediction) return [];
+    return prediction.allocations.map((a) => ({
+      ticker: a.ticker,
+      value: a.dollar_value,
+      action: a.action,
+      pct: a.pct_of_budget,
+      rsi: a.rsi,
+      macd_hist: a.macd_hist,
+      bb_pct: a.bb_pct,
+    }));
+  }, [prediction]);
+
+  const actionGroups = useMemo(() => {
+    const groups: Record<Allocation["action"], Allocation[]> = {
+      BUY: [],
+      HOLD: [],
+      SELL: [],
+    };
+    prediction?.allocations.forEach((a) => groups[a.action].push(a));
+    return groups;
+  }, [prediction]);
+
+  const summary = prediction?.backtest_summary;
+  const answeredCount = Object.values(answers).filter((a) => a.trim()).length;
+
+  return (
+    <ScrollArea className="min-h-0 px-3">
+      <div className="space-y-6 container mx-auto pb-8">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Predictions</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Replay the PPO agent over historical data, compare its portfolio to a benchmark, then test your read of its final signals.
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Generate Predictions</CardTitle>
+            <CardDescription>
+              Replays a trained PPO agent over the evaluation window and returns its equity curve, drawdown, and final per-ticker signals. Each signal is a number between -1 and +1: above +0.05 the agent buys, below -0.05 it sells, and anything in between is a hold.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2 max-w-xl">
+              <Label htmlFor="predict-model-select">Select Trained Model</Label>
+              <Select
+                value={selectedModel}
+                onValueChange={(value) => setSelectedModel(value ?? models[0]?.model_name)}
+                disabled={loadingModels || loading || models.length === 0}
+              >
+                <SelectTrigger id="predict-model-select" className="w-full">
+                  <SelectValue
+                    placeholder={
+                      loadingModels
+                        ? "Loading models..."
+                        : models.length === 0
+                        ? "No models available"
+                        : "Select a model"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((m) => (
+                    <SelectItem key={m.id} value={m.model_name}>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-medium">{m.model_name}</span>
+                        <span className="text-xs text-muted-foreground">({m.tickers})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {models.length === 0 && !loadingModels && (
+                <p className="text-xs text-destructive">
+                  No trained models found. Train a model in settings first.
+                </p>
+              )}
+            </div>
+
+            <Button
+              onClick={handlePredict}
+              disabled={loading || loadingModels || !selectedModel}
+              className="transition-colors bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading && (
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              )}
+              {loading ? "Running..." : "Generate Predictions"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {status && (
+          <div
+            className={`p-4 rounded-lg border text-sm whitespace-pre-wrap transition-all ${
+              status.type === "info"
+                ? "bg-sky-50 text-sky-900 border-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-800"
+                : status.type === "success"
+                ? "bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800"
+                : "bg-destructive/10 text-destructive border-destructive/20"
+            }`}
+          >
+            {status.message}
           </div>
         )}
-      </CardContent>
-    </Card>
-  )
+
+        {prediction && summary && (
+          <>
+            {/* evaluated period */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarRange className="h-4 w-4 text-cyan-600" />
+              <span>
+                Evaluated period:{" "}
+                <span className="font-medium text-foreground">
+                  {prediction.eval_period}
+                </span>
+              </span>
+            </div>
+
+            {/* metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="rounded-lg border p-3">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {summary.rl_return_pct >= 0 ? (
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                  )}
+                  RL Return
+                </div>
+                <div
+                  className={`text-lg font-bold ${
+                    summary.rl_return_pct >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-destructive"
+                  }`}
+                >
+                  {formatPercent(summary.rl_return_pct)}
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">Buy &amp; Hold</div>
+                <div className="text-lg font-bold">{formatPercent(summary.bh_return_pct)}</div>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">Alpha</div>
+                <div
+                  className={`text-lg font-bold ${
+                    summary.alpha_margin >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-destructive"
+                  }`}
+                >
+                  {formatPercent(summary.alpha_margin)}
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">Sharpe</div>
+                <div className="text-lg font-bold">{summary.sharpe.toFixed(3)}</div>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-muted-foreground">Max Drawdown</div>
+                <div className="text-lg font-bold text-destructive">
+                  {summary.max_drawdown_pct.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* graphs */}
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight mb-3">Portfolio Evolution</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Equity Curve</CardTitle>
+                    <CardDescription>
+                      Portfolio value over the evaluation window if the agent rebalanced at every step, vs. an equal-weight buy-and-hold basket of the same tickers.<br />
+                      The dashed line marks the starting budget.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                      <LineChart data={equityData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          minTickGap={48}
+                          tickFormatter={formatTick}
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          width={64}
+                          domain={["auto", "auto"]}
+                          tickFormatter={(v) => formatDollar(Number(v))}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ReferenceLine
+                          y={prediction.budget}
+                          stroke="var(--color-border)"
+                          strokeDasharray="3 3"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="rl"
+                          stroke="var(--color-rl)"
+                          strokeWidth={2}
+                          dot={false}
+                          name="RL Agent"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="bh"
+                          stroke="var(--color-bh)"
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={false}
+                          name="Buy & Hold"
+                        />
+                      </LineChart>
+                    </ChartContainer>
+                    <div className="flex items-center justify-center gap-4 pt-3">
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: chartConfig.rl.color }} />
+                        RL Agent
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: chartConfig.bh.color }} />
+                        Buy &amp; Hold
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Drawdown</CardTitle>
+                    <CardDescription>
+                      Worst peak-to-trough decline for each strategy at every point in time. Closer to 0% means the strategy never fell far from its previous high.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                      <AreaChart data={drawdownData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          minTickGap={48}
+                          tickFormatter={formatTick}
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          width={48}
+                          domain={["auto", "auto"]}
+                          tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Area
+                          type="monotone"
+                          dataKey="rl"
+                          stroke="var(--color-rl)"
+                          fill="var(--color-rl)"
+                          fillOpacity={0.12}
+                          name="RL Drawdown"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="bh"
+                          stroke="var(--color-bh)"
+                          fill="var(--color-bh)"
+                          fillOpacity={0.12}
+                          name="B&H Drawdown"
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Allocation Breakdown</CardTitle>
+                  <CardDescription>
+                    The agent's final signals at the last evaluation date. A buy targets a dollar
+                    position (capped at 40% of the budget); sells and holds target $0, so only buy
+                    signals show a visible bar. Hover a bar for the indicators the agent observed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {(["BUY", "HOLD", "SELL"] as const).map((action) => {
+                      const tickers = actionGroups[action].map((a) => a.ticker);
+                      const meta = ACTION_META[action];
+                      return (
+                        <Badge
+                          key={action}
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          style={{
+                            color: meta.color,
+                            borderColor: meta.color,
+                            backgroundColor: `${meta.color}1A`,
+                          }}
+                        >
+                          <span className="font-semibold">{meta.label}:</span>
+                          {tickers.length ? tickers.join(", ") : "none"}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  <ChartContainer config={chartConfig} className="h-[260px] w-full">
+                    <BarChart data={allocationData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="ticker" tickLine={false} axisLine={false} />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={64}
+                        tickFormatter={(v) => formatDollar(Number(v))}
+                      />
+                      <ChartTooltip content={<AllocationTooltip />} />
+                      <Bar dataKey="value" name="Allocation" radius={4}>
+                        {allocationData.map((d) => (
+                          <Cell key={d.ticker} fill={ACTION_META[d.action].color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                  <div className="flex items-center justify-center gap-4 pt-3">
+                    {(["BUY", "HOLD", "SELL"] as const).map((action) => (
+                      <span
+                        key={action}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                      >
+                        <span
+                          className="h-2 w-2 rounded-[2px]"
+                          style={{ backgroundColor: ACTION_META[action].color }}
+                        />
+                        {ACTION_META[action].label}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* quiz */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BrainCircuitIcon className="h-5 w-5" />
+                  Quiz: Read the Agent's Mind
+                </CardTitle>
+                <CardDescription>
+                  Answer questions about the agent's decisions, then have an LLM review your analysis.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {questions.length === 0 ? (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={startQuiz}
+                      disabled={quizLoading}
+                      variant="outline"
+                    >
+                      {quizLoading && (
+                        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      )}
+                      {quizLoading ? "Loading quiz..." : "Start Quiz"}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Questions are generated from the agent's latest recommendations.
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-5">
+                      {questions.map((q, i) => (
+                        <div key={q.id} className="space-y-2">
+                          <p className="text-sm font-medium">
+                            {i + 1}. {q.question}
+                          </p>
+                          {q.context && (
+                            <p className="text-xs text-muted-foreground font-mono">{q.context}</p>
+                          )}
+                          {q.type === "mcq" ? (
+                            <div className="flex flex-wrap gap-2">
+                              {q.options?.map((opt) => {
+                                const selected = answers[q.id] === opt;
+                                return (
+                                  <Button
+                                    key={opt}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      setAnswers((prev) => ({ ...prev, [q.id]: opt }))
+                                    }
+                                    className={cn(
+                                      selected &&
+                                        "border-cyan-600 bg-cyan-600/10 text-cyan-700 dark:text-cyan-300"
+                                    )}
+                                  >
+                                    {opt}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <Textarea
+                              rows={3}
+                              placeholder="Type your analysis..."
+                              value={answers[q.id] ?? ""}
+                              onChange={(e) =>
+                                setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                              }
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={submitQuiz}
+                        disabled={reviewing || answeredCount < questions.length}
+                        className="bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
+                      >
+                        {reviewing && (
+                          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        )}
+                        {reviewing ? "Reviewing..." : "Submit for Review"}
+                      </Button>
+                      <Button variant="ghost" onClick={startQuiz} disabled={quizLoading}>
+                        Reset
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {quizStatus && (
+                  <div
+                    className={`p-4 rounded-lg border text-sm whitespace-pre-wrap transition-all ${
+                      quizStatus.type === "error"
+                        ? "bg-destructive/10 text-destructive border-destructive/20"
+                        : "bg-sky-50 text-sky-900 border-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-800"
+                    }`}
+                  >
+                    {quizStatus.message}
+                  </div>
+                )}
+
+                {review && (
+                  <div className="space-y-3">
+                    {review.raw ? (
+                      <p className="text-sm whitespace-pre-wrap">{review.raw}</p>
+                    ) : (
+                      <>
+                        {typeof review.score === "number" && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold">
+                              {review.score} / {review.total}
+                            </span>
+                            <Badge variant="secondary" className="gap-1">
+                              <SparklesIcon className="h-3 w-3" />
+                              LLM reviewed
+                            </Badge>
+                          </div>
+                        )}
+
+                        {review.reviews?.map((r) => {
+                          const q = questions.find((qq) => qq.id === r.question_id);
+                          return (
+                            <div key={r.question_id} className="rounded-lg border p-3">
+                              <div className="flex items-start gap-2">
+                                {r.correct === true ? (
+                                  <CircleCheckIcon className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                                ) : r.correct === false ? (
+                                  <CircleXIcon className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                                ) : (
+                                  <SparklesIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {q?.question}
+                                  </p>
+                                  <p className="text-sm mt-1">{r.feedback}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {review.overall_feedback && (
+                          <div className="rounded-lg border p-3 bg-muted/50">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                              Overall feedback
+                            </p>
+                            <p className="text-sm whitespace-pre-wrap">{review.overall_feedback}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    </ScrollArea>
+  );
 }
-````
-
-## File: src-py/llm/__init__.py
-````python
-
 ````
 
 ## File: src-py/llm/learn.py
@@ -6267,11 +7663,6 @@ def format_reference_block(sources: list[dict[str, Any]]) -> str:
     return "\n\n".join(parts)
 ````
 
-## File: src-py/rl_pipeline/__init__.py
-````python
-
-````
-
 ## File: src-py/rl_pipeline/backtest.py
 ````python
 import math
@@ -6413,8 +7804,52 @@ def extract_performance_data(rl_strat, bh_strat, rl_end, bh_end):
         "sharpe": sr,                   #     sharpe ratio (risk-adjusted return metric; higher is better)
         "trades": n_trades,             #     total number of round-trip trades completed and closed by the agent
         "won": n_won,                   #     total number of completed trades that resulted in a positive financial profit
-        "tr_rl": tr_rl                  #     dict mapping daily dates to raw returns, used for equity path construction
+        "tr_rl": tr_rl,                 #     dict mapping daily dates to raw returns, used for equity path construction
+        "tr_bh": tr_bh                  #     dict mapping daily dates to raw returns for the buy-and-hold benchmark
     }
+
+def build_evolution_curves(tr_rl, tr_bh, budget=BUDGET):
+    """
+    Converts raw daily-return dicts (date -> return) into aligned portfolio
+    value and drawdown series, ready to be serialized to the frontend.
+    """
+    def cumulative(tr_dict):
+        out = {}
+        value = budget
+        for d, r in sorted(tr_dict.items()):
+            value *= (1.0 + r)
+            out[d] = value
+        return out
+
+    rl_map = cumulative(tr_rl)
+    bh_map = cumulative(tr_bh)
+
+    dates = sorted(set(rl_map) | set(bh_map))
+
+    iso, rl_values, bh_values, rl_dd, bh_dd = [], [], [], [], []
+    rl_val = bh_val = budget
+    rl_peak = bh_peak = budget
+
+    for d in dates:
+        rl_val = rl_map.get(d, rl_val)
+        bh_val = bh_map.get(d, bh_val)
+        rl_peak = max(rl_peak, rl_val)
+        bh_peak = max(bh_peak, bh_val)
+
+        iso.append(d.isoformat() if hasattr(d, "isoformat") else str(d))
+        rl_values.append(round(rl_val, 2))
+        bh_values.append(round(bh_val, 2))
+        rl_dd.append(round((rl_val - rl_peak) / rl_peak * 100, 2))
+        bh_dd.append(round((bh_val - bh_peak) / bh_peak * 100, 2))
+
+    return {
+        "dates": iso,
+        "rl_value": rl_values,
+        "bh_value": bh_values,
+        "rl_drawdown": rl_dd,
+        "bh_drawdown": bh_dd,
+    }
+
 
 def save_equity_curve(tr_rl, tr_bh):
     """
@@ -6445,408 +7880,1948 @@ def save_equity_curve(tr_rl, tr_bh):
     plt.close()
 ````
 
-## File: src-py/rl_pipeline/environment.py
+## File: src-py/rl_pipeline/data.py
 ````python
-import math
-import gymnasium as gym
+import pandas as pd
+import yfinance as yf
+import matplotlib
+import matplotlib.pyplot as plt
+
+from config import LOOKBACK, OUTPUT_DIR, bcolors
+
+matplotlib.use("Agg")
+
+def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Appends RSI, MACD, Bollinger Bands, and ATR technical features to the dataset.
+    """
+    c, h, l, v = df["Close"], df["High"], df["Low"], df["Volume"]
+
+    # RSI-14
+    delta = c.diff()
+    df["rsi"] = 100 - 100 / (
+        1 + delta.clip(lower=0).rolling(14).mean()
+        / (-delta.clip(upper=0)).rolling(14).mean().replace(0, 1e-9)
+    )
+
+    # MACD histogram
+    ema12 = c.ewm(span=12, adjust=False).mean()
+    ema26 = c.ewm(span=26, adjust=False).mean()
+    macd = ema12 - ema26
+    df["macd_hist"] = macd - macd.ewm(span=9, adjust=False).mean()
+
+    # Bollinger Band position (20-day, 2σ)
+    sma = c.rolling(20).mean()
+    std = c.rolling(20).std()
+    df["bb_pct"] = (c - (sma - 2*std)) / (4*std + 1e-9)
+
+    # ATR-14
+    tr = pd.concat([h-l, (h-c.shift()).abs(), (l-c.shift()).abs()], axis=1).max(axis=1)
+    df["atr"] = tr.rolling(14).mean()
+
+    return df.dropna()
+
+def download_market_data(tickers: list[str], start: str, end: str) -> dict[str, pd.DataFrame]:
+    """
+    Downloads time-series data and appends indicator columns.
+    """
+    datasets: dict[str, pd.DataFrame] = {}
+
+    # print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Downloading market data ({start} -> {end})")
+
+    for ticker in tickers:
+        raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+        if isinstance(raw.columns, pd.MultiIndex):
+            raw.columns = raw.columns.get_level_values(0)
+
+        if len(raw) < LOOKBACK + 30:
+            continue
+
+        df = add_indicators(raw.copy())
+        datasets[ticker] = df
+
+        # print(f"    - {ticker}: {len(df)} rows, "
+        #       f"price range ${df['Close'].min():.0f}–${df['Close'].max():.0f}")
+
+    return datasets
+
+def save_diagnostic_chart(train_data: dict[str, pd.DataFrame], target_ticker: str):
+    """
+    Saves close price and RSI analytics for observation verification.
+    """
+    if target_ticker not in train_data:
+        return
+
+    df_vis = train_data[target_ticker]
+    fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
+
+    axes[0].plot(df_vis.index, df_vis["Close"], linewidth=1)
+    axes[0].set_title(f"{target_ticker} - Closing Price (training period)")
+    axes[0].set_ylabel("Price ($)")
+
+    axes[1].plot(df_vis.index, df_vis["rsi"], color="orange", linewidth=1)
+    axes[1].axhline(70, color="red", linestyle="--", linewidth=0.8, label="Overbought 70")
+    axes[1].axhline(30, color="green", linestyle="--", linewidth=0.8, label="Oversold 30")
+    axes[1].set_title("RSI-14")
+    axes[1].set_ylabel("RSI")
+    axes[1].legend()
+
+    plt.tight_layout()
+    chart_path = OUTPUT_DIR / "price_rsi.png"
+    plt.savefig(chart_path, dpi=120)
+    plt.close()
+    print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Diagnostic chart saved → {chart_path}")
+````
+
+## File: src-py/rl_pipeline/rl_agent.py
+````python
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_util import make_vec_env
+
+from rl_pipeline.environment import TradingEnv
+
+from config import TIMESTEPS, OUTPUT_DIR, bcolors
+
+def train_ppo_agent(train_data: dict) -> PPO:
+    """
+    Initializes and trains the Stable-Baselines3 model vectorization framework.
+    """
+    vec_env = make_vec_env(lambda: TradingEnv(train_data), n_envs=1)
+
+    model = PPO(
+        "MlpPolicy",
+        vec_env,
+        learning_rate = 3e-4,
+        n_steps       = 256,
+        batch_size    = 64,
+        n_epochs      = 10,
+        gamma         = 0.99,
+        ent_coef      = 0.01,
+        verbose       = 0,
+        policy_kwargs = dict(net_arch=[128, 64]),
+    )
+
+    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Beginning network policy optimization optimization updates...\n")
+    model.learn(total_timesteps=TIMESTEPS, progress_bar=True)
+
+    model_path = OUTPUT_DIR / "poc_agent"
+    model.save(model_path)
+    # print()
+    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Policy model weights binary serialized out to: {model_path}.zip")
+
+    return model
+````
+
+## File: src-py/tests/_fakes.py
+````python
+"""Duck-typed test doubles shared by the src-py test modules.
+
+Nothing here imports src-py application code, so it stays safe to import from
+conftest before the ``--data-dir`` bootstrap completes.
+"""
+
 import numpy as np
 import pandas as pd
-from gymnasium import spaces
 
-from config import BUDGET, LOOKBACK, N_FEAT, FEATURE_COLS, COMMISSION, MAX_WEIGHT
 
-class TradingEnv(gym.Env):
+class FakeProvider:
+    """Stand-in for an ``LLMProvider``: records calls, replays scripted replies.
+
+    Implements the same surface ``llm.main`` / ``llm.providers`` rely on
+    (``available``, ``start``, ``is_available``, ``list_models``, ``has_model``,
+    ``chat``) so it can be dropped into ``PROVIDER_REGISTRY`` without touching a
+    real backend.
     """
-    Custom standard multi-stock operational environment tracking cash vectors.
-    """
-    def __init__(self, data: dict[str, pd.DataFrame], budget: float = BUDGET):
-        super().__init__()
-        self.tickers = list(data.keys())
-        self.n = len(self.tickers)
-        self.budget = budget
 
-        idx = None
-        for df in data.values():
-            idx = df.index if idx is None else idx.intersection(df.index)
-            
-        self.dates = sorted(idx)
+    def __init__(self, replies=None, available=True, models=("fake-model",), provider_id="fake"):
+        self.id = provider_id
+        self.replies = list(replies or [])
+        self.available = available
+        self.models = set(models)
+        self.display_name = "Fake"
+        self.setup_hint = ""
+        self.calls = []
 
-        self.feat = {t: data[t].loc[self.dates, FEATURE_COLS].values.astype(np.float32) for t in self.tickers}
-        self.closes = {t: data[t].loc[self.dates, "Close"].values.astype(np.float32) for t in self.tickers}
+    # -- LLMProvider-compatible surface ------------------------------------
+    def start(self):
+        """No-op: tests must never launch a real LLM server."""
+        return None
 
-        obs_size = self.n * LOOKBACK * N_FEAT + self.n + 1
-        self.observation_space = spaces.Box(-np.inf, np.inf, (obs_size,), np.float32)
-        self.action_space = spaces.Box(-1.0, 1.0, (self.n,), np.float32)
-        self._reset_state()
+    def is_available(self):
+        return self.available
 
-    def _reset_state(self):
-        self._i = LOOKBACK
-        self._shares = np.zeros(self.n, np.float32)
-        self._cash = float(self.budget)
-        self._prev_v = float(self.budget)
-
-    def _value(self, i: int) -> float:
-        prices = np.array([self.closes[t][i] for t in self.tickers])
-        
-        return float(self._cash + self._shares @ prices)
-
-    def _obs(self) -> np.ndarray:
-        windows = []
-        for t in self.tickers:
-            w = self.feat[t][self._i - LOOKBACK: self._i]
-            mn = w.min(0, keepdims=True)
-            mx = w.max(0, keepdims=True)
-            windows.append(((w - mn) / (mx - mn + 1e-9)).flatten())
-
-        prices = np.array([self.closes[t][self._i] for t in self.tickers])
-        v = self._value(self._i)
-        weights = (self._shares * prices) / (v + 1e-9)
-        cash_r = np.array([self._cash / (v + 1e-9)], np.float32)
-        
-        return np.concatenate(windows + [weights, cash_r]).astype(np.float32)
-
-    def reset(self, *, seed=None, options=None):
-        super().reset(seed=seed)
-        self._reset_state()
-        
-        return self._obs(), {}
-
-    def step(self, action):
-        prices = np.array([self.closes[t][self._i] for t in self.tickers])
-        total = self._value(self._i)
-
-        for i, a in enumerate(action):
-            if a < -0.05 and self._shares[i] > 0:
-                sell = self._shares[i] * abs(float(a))
-                self._cash += (sell * prices[i]) * (1 - COMMISSION)
-                self._shares[i] -= sell
-
-        for i, a in enumerate(action):
-            if a > 0.05:
-                target = min(float(a), MAX_WEIGHT) * total
-                current = self._shares[i] * prices[i]
-                spend = min(max(target - current, 0), self._cash * 0.99)
-                self._shares[i] += spend / (prices[i] + 1e-9)
-                self._cash -= spend * (1 + COMMISSION)
-
-        self._cash = max(self._cash, 0.0)
-        self._i += 1
-        new_v = self._value(self._i)
-        reward = math.log(new_v / (self._prev_v + 1e-9))
-        self._prev_v = new_v
-
-        done = self._i >= len(self.dates) - 1
-
-        return self._obs(), reward, done, False, {}
-````
-
-## File: src-py/utils/__init__.py
-````python
-
-````
-
-## File: src-py/app.spec
-````
-# -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
-
-datas, binaries, hiddenimports = collect_all('stable_baselines3')
-
-a = Analysis(
-    ['main.py'],
-    pathex=[],
-    binaries=binaries,
-    datas=datas,
-    hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    noarchive=False,
-    optimize=0,
-)
-pyz = PYZ(a.pure)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
-    name='app',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
-````
-
-## File: src-py/recommendations.json
-````json
-{
-  "budget": 5000.0,
-  "cash_remaining": 4171.08,
-  "eval_period": "2025-01-01 -> 2026-06-01",
-  "backtest_summary": {
-    "rl_return_pct": 40.08,
-    "bh_return_pct": 40.12,
-    "sharpe": 1.45,
-    "max_drawdown_pct": 17.88
-  },
-  "allocations": [
-    {
-      "ticker": "NVDA",
-      "action": "BUY",
-      "price": 210.89,
-      "shares": 3.9305,
-      "dollar_value": 828.92,
-      "pct_of_budget": 16.6,
-      "rsi": 46.3,
-      "macd_hist": -2.1629,
-      "bb_pct": 0.391
-    },
-    {
-      "ticker": "AAPL",
-      "action": "SELL",
-      "price": 312.06,
-      "shares": 0.0,
-      "dollar_value": 0.0,
-      "pct_of_budget": 0.0,
-      "rsi": 84.3,
-      "macd_hist": 0.6151,
-      "bb_pct": 0.843
-    },
-    {
-      "ticker": "MSFT",
-      "action": "SELL",
-      "price": 450.24,
-      "shares": 0.0,
-      "dollar_value": 0.0,
-      "pct_of_budget": 0.0,
-      "rsi": 71.7,
-      "macd_hist": 1.7733,
-      "bb_pct": 1.366
-    }
-  ]
-}
-````
-
-## File: src/components/nav-main.tsx
-````typescript
-import { useState } from "react";
-import { ChevronRight, Plus, MoreHorizontal, Trash2 } from "lucide-react";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarSeparator,
-} from "@/components/ui/sidebar"
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { NavElement } from "@/types";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom"
-import { useChannels } from "@/hooks/use-channel";
-
-export function NavMain({
-  items,
-}: {
-  items: NavElement[]
-}) {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  return (
-    <SidebarGroup>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => {
-            if (item.hidenav) return null;
-            const isActive = location.pathname === item.url;
-
-            if (item.expandable) {
-              return (
-                <ChatNavItem
-                  key={item.title}
-                  item={item}
-                  isActive={isActive}
-                />
-              );
+    def list_models(self):
+        return [
+            {
+                "name": name,
+                "size": 0,
+                "parameter_size": None,
+                "quantization_level": None,
+                "family": None,
             }
+            for name in sorted(self.models)
+        ]
 
-            return (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={isActive}
-                  onClick={() => navigate(item.url)}
-                >
-                  {item.icon}
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
+    def has_model(self, model):
+        return model in self.models
 
-function ChatNavItem({
-  item,
-  isActive,
-}: {
-  item: NavElement;
-  isActive: boolean;
-}) {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { channels, createChannel, deleteChannel } = useChannels();
+    def chat(self, system_prompt, user_prompt, model, temperature=0.7, stream=False):
+        self.calls.append(
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "model": model,
+                "temperature": temperature,
+                "stream": stream,
+            }
+        )
+        if not self.replies:
+            return "scripted reply"
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
 
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [isOpen, setIsOpen] = useState(isActive);
 
-  const activeChannelId = searchParams.get("channel") ?? "general";
+class DummyModel:
+    """Mimics the slice of the Stable-Baselines3 ``predict()`` API we depend on."""
 
-  function submitNewChannel() {
-    const name = newName.trim();
-    if (name) createChannel(name);
-    setNewName("");
-    setCreating(false);
+    def __init__(self, actions):
+        self.actions = np.asarray(actions, dtype=np.float32)
+        self.calls = 0
 
-    navigate(`${item.url}?channel=${encodeURIComponent(name)}`);
-  }
+    def predict(self, obs, deterministic=True):
+        self.calls += 1
+        return self.actions.copy(), None
 
-  async function handleDeleteChannel(id: string) {
-    if (!deleteChannel) return;
 
-    await deleteChannel(id);
+def make_ohlcv(seed=0, rows=80, start="2025-01-01"):
+    """Deterministic synthetic OHLCV frame shaped like a yfinance download."""
+    rng = np.random.default_rng(seed)
+    close = 100.0 * np.exp(np.cumsum(rng.normal(0.0005, 0.01, rows)))
+    open_ = close * (1.0 + rng.normal(0.0, 0.002, rows))
+    spread = np.abs(rng.normal(0.0, 0.004, rows))
+    index = pd.date_range(start, periods=rows, freq="B")
+    return pd.DataFrame(
+        {
+            "Open": open_,
+            "High": np.maximum(open_, close) * (1.0 + spread),
+            "Low": np.minimum(open_, close) * (1.0 - spread),
+            "Close": close,
+            "Volume": rng.integers(1_000_000, 5_000_000, rows).astype(float),
+        },
+        index=index,
+    )
+````
 
-    if (activeChannelId === id) {
-      const remainingChannels = channels.filter((c) => c.id !== id);
-      const fallbackId = remainingChannels[0]?.id ?? "general";
-      navigate(`${item.url}?channel=${fallbackId}`);
+## File: src-py/tests/_schema.py
+````python
+"""Structural contract for ``recommendations.json``.
+
+Producer: ``rl_pipeline.main.generate_recommendations()``
+Consumer: ``llm.main.generate_explanation()``
+Reference sample: ``src-py/recommendations.json``
+
+Shape::
+
+    {
+      "budget": float,
+      "cash_remaining": float,                # budget - sum(allocation dollar_value)
+      "eval_period": "YYYY-MM-DD -> YYYY-MM-DD",
+      "backtest_summary": {
+          "rl_return_pct": float,
+          "bh_return_pct": float,
+          "sharpe": float,
+          "max_drawdown_pct": float,
+          "alpha_margin": float,              # producer-only; absent from the old sample
+      },
+      "allocations": [                        # sorted by dollar_value, descending
+          {
+              "ticker": str,
+              "action": "BUY" | "SELL" | "HOLD",
+              "price": float,
+              "shares": float,
+              "dollar_value": float,
+              "pct_of_budget": float,
+              "rsi": float,
+              "macd_hist": float,
+              "bb_pct": float,
+          }
+      ],
     }
-  }
+"""
 
-  return (
-    <SidebarMenuItem>
-      <Collapsible
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="group/collapsible w-full"
-      >
-        <SidebarMenuButton
-          tooltip={item.title}
-          isActive={isActive}
-          onClick={() => setIsOpen((prev) => !prev)}
-        >
-          {item.icon}
-          <span>{item.title}</span>
-          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-        </SidebarMenuButton>
+import math
+import re
 
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            {channels?.map((subItem) => {
-              const isSubItemActive = isActive && activeChannelId === subItem.id;
-
-              return (
-                <SidebarMenuSubItem
-                  key={subItem.id}
-                  className="group/subitem relative flex items-center"
-                >
-                  <SidebarMenuSubButton
-                    isActive={isSubItemActive}
-                    onClick={() => navigate(`${item.url}?channel=${subItem.id}`)}
-                    className="w-full pr-8" /* pr-8 ensures long names don't overlap the action icon */
-                  >
-                    <span className="truncate">{subItem.name}</span>
-                  </SidebarMenuSubButton>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/subitem:opacity-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-opacity"
-                        title="Channel Options"
-                      >
-                        <MoreHorizontal className="size-3.5" />
-                        <span className="sr-only">More options</span>
-                      </button>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent side="right" align="start">
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteChannel(subItem.id);
-                        }}
-                      >
-                        <Trash2 className="size-4 mr-2" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuSubItem>
-              );
-            })}
-
-            <SidebarSeparator className="my-1" />
-
-            <SidebarMenuSubItem>
-              {creating ? (
-                <input
-                  autoFocus
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") submitNewChannel();
-                    if (e.key === "Escape") setCreating(false);
-                  }}
-                  onBlur={submitNewChannel}
-                  placeholder="Channel name..."
-                  className="w-full px-2 py-1 mt-1 text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              ) : (
-                <SidebarMenuSubButton
-                  onClick={() => setCreating(true)}
-                  className="text-muted-foreground mt-1"
-                >
-                  <Plus className="size-3.5 mr-1" />
-                  <span>New channel</span>
-                </SidebarMenuSubButton>
-              )}
-            </SidebarMenuSubItem>
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </Collapsible>
-    </SidebarMenuItem>
-  );
+TOP_LEVEL_KEYS = {
+    "budget",
+    "cash_remaining",
+    "eval_period",
+    "backtest_summary",
+    "allocations",
 }
+BACKTEST_REQUIRED_KEYS = {
+    "rl_return_pct",
+    "bh_return_pct",
+    "sharpe",
+    "max_drawdown_pct",
+}
+# Written by the current producer but absent from the committed sample.
+BACKTEST_OPTIONAL_KEYS = {"alpha_margin"}
+# Equity/drawdown curves written by the current producer but absent from the
+# committed sample.
+EVOLUTION_KEYS = {
+    "dates",
+    "rl_value",
+    "bh_value",
+    "rl_drawdown",
+    "bh_drawdown",
+}
+ALLOCATION_KEYS = {
+    "ticker",
+    "action",
+    "price",
+    "shares",
+    "dollar_value",
+    "pct_of_budget",
+    "rsi",
+    "macd_hist",
+    "bb_pct",
+}
+VALID_ACTIONS = {"BUY", "SELL", "HOLD"}
+
+_EVAL_PERIOD_RE = re.compile(r"^\d{4}-\d{2}-\d{2} -> \d{4}-\d{2}-\d{2}$")
+
+
+def _is_number(value):
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def assert_valid_recommendations_payload(
+    payload, *, require_alpha_margin=False, max_weight_pct=None
+):
+    """Assert ``payload`` matches the recommendations.json contract.
+
+    ``require_alpha_margin`` is True for payloads produced by the current
+    ``generate_recommendations`` (which emits ``alpha_margin``) and False for the
+    committed sample, which predates that key.
+    ``max_weight_pct`` optionally enforces the per-position weight ceiling
+    (``config.MAX_WEIGHT * 100``).
+    """
+    assert isinstance(payload, dict), "payload must be a JSON object"
+    # `evolution` (equity/drawdown curves) is written by the current producer
+    # but absent from the committed sample, so it is allowed but not required.
+    assert TOP_LEVEL_KEYS <= set(payload), (
+        "payload missing top-level keys: "
+        f"{sorted(TOP_LEVEL_KEYS - set(payload))}"
+    )
+    unexpected_top = set(payload) - TOP_LEVEL_KEYS - {"evolution"}
+    assert not unexpected_top, (
+        "unexpected top-level keys: "
+        f"{sorted(unexpected_top)}"
+    )
+
+    # The current producer appends an `evolution` block (equity/drawdown
+    # curves); the committed sample predates it.
+    evolution = payload.get("evolution")
+    if evolution is not None:
+        assert isinstance(evolution, dict), "evolution must be an object"
+        assert set(evolution) == EVOLUTION_KEYS, (
+            "evolution keys mismatch: "
+            f"{sorted(set(evolution) ^ EVOLUTION_KEYS)}"
+        )
+        lengths = {len(evolution[key]) for key in EVOLUTION_KEYS}
+        assert len(lengths) == 1, "evolution arrays must share one length"
+        for value in evolution["dates"]:
+            assert isinstance(value, str) and value, "evolution.dates must contain date strings"
+        for key in EVOLUTION_KEYS - {"dates"}:
+            for value in evolution[key]:
+                assert _is_number(value), f"evolution.{key} must contain finite numbers"
+
+    assert _is_number(payload["budget"]), "budget must be a finite number"
+    assert payload["budget"] > 0, "budget must be positive"
+    assert _is_number(payload["cash_remaining"]), (
+        "cash_remaining must be a finite number"
+    )
+    assert 0 <= payload["cash_remaining"] <= payload["budget"], (
+        "cash_remaining must be within [0, budget]"
+    )
+
+    assert isinstance(payload["eval_period"], str)
+    assert _EVAL_PERIOD_RE.match(payload["eval_period"]), (
+        f"eval_period must be 'YYYY-MM-DD -> YYYY-MM-DD', got "
+        f"{payload['eval_period']!r}"
+    )
+
+    summary = payload["backtest_summary"]
+    assert isinstance(summary, dict), "backtest_summary must be an object"
+    missing = BACKTEST_REQUIRED_KEYS - set(summary)
+    assert not missing, f"backtest_summary missing keys: {sorted(missing)}"
+    unexpected = set(summary) - BACKTEST_REQUIRED_KEYS - BACKTEST_OPTIONAL_KEYS
+    assert not unexpected, f"backtest_summary has unexpected keys: {sorted(unexpected)}"
+    if require_alpha_margin:
+        assert "alpha_margin" in summary, "producer payload must include alpha_margin"
+    for key, value in summary.items():
+        assert _is_number(value), f"backtest_summary.{key} must be a finite number"
+
+    allocations = payload["allocations"]
+    assert isinstance(allocations, list) and allocations, (
+        "allocations must be a non-empty list"
+    )
+
+    for allocation in allocations:
+        assert isinstance(allocation, dict), "each allocation must be an object"
+        assert set(allocation) == ALLOCATION_KEYS, (
+            f"allocation keys mismatch for {allocation.get('ticker')!r}: "
+            f"{sorted(set(allocation) ^ ALLOCATION_KEYS)}"
+        )
+
+        ticker = allocation["ticker"]
+        assert isinstance(ticker, str) and ticker.strip(), "ticker must be a non-empty string"
+        assert allocation["action"] in VALID_ACTIONS, (
+            f"invalid action {allocation['action']!r} for {ticker}"
+        )
+
+        for key in (
+            "price",
+            "shares",
+            "dollar_value",
+            "pct_of_budget",
+            "rsi",
+            "macd_hist",
+            "bb_pct",
+        ):
+            assert _is_number(allocation[key]), (
+                f"{ticker}.{key} must be a finite number"
+            )
+
+        assert allocation["price"] > 0, f"{ticker}.price must be positive"
+        assert allocation["shares"] >= 0, f"{ticker}.shares must be non-negative"
+        assert allocation["dollar_value"] >= 0, (
+            f"{ticker}.dollar_value must be non-negative"
+        )
+        assert 0.0 <= allocation["rsi"] <= 100.0, f"{ticker}.rsi out of range"
+
+        if allocation["action"] == "BUY":
+            assert allocation["shares"] > 0 and allocation["dollar_value"] > 0, (
+                f"{ticker}: BUY must allocate money"
+            )
+            # pct_of_budget is the weight (dollars / budget) expressed as a %.
+            expected_pct = allocation["dollar_value"] / payload["budget"] * 100
+            assert abs(allocation["pct_of_budget"] - expected_pct) <= 0.11, (
+                f"{ticker}.pct_of_budget inconsistent with dollar_value"
+            )
+        else:
+            assert allocation["shares"] == 0.0 and allocation["dollar_value"] == 0.0, (
+                f"{ticker}: SELL/HOLD must not allocate money"
+            )
+
+        if max_weight_pct is not None:
+            assert allocation["pct_of_budget"] <= max_weight_pct + 0.11, (
+                f"{ticker}.pct_of_budget exceeds MAX_WEIGHT"
+            )
+
+    values = [allocation["dollar_value"] for allocation in allocations]
+    assert values == sorted(values, reverse=True), (
+        "allocations must be sorted by dollar_value descending"
+    )
+
+    committed = sum(values)
+    tolerance = 0.02 + 0.01 * len(values)
+    assert abs(payload["cash_remaining"] - (payload["budget"] - committed)) <= tolerance, (
+        "cash_remaining must equal budget - sum(allocation dollar_value)"
+    )
+
+    return payload
+````
+
+## File: src-py/tests/conftest.py
+````python
+"""Test bootstrap and shared fixtures for the src-py Python suite.
+
+Import-time note: ``utils.path`` parses a REQUIRED ``--data-dir`` argument while
+it is imported (the Tauri sidecar always passes one). This conftest therefore
+guarantees a value is on ``sys.argv`` and puts src-py on ``sys.path`` before any
+application module is imported.
+
+Everything that would touch the outside world is replaced by a test double or
+monkeypatch, so the suite runs offline.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+
+SRC_PY_DIR = Path(__file__).resolve().parent.parent
+TESTS_DIR = Path(__file__).resolve().parent
+
+for _path in (str(TESTS_DIR), str(SRC_PY_DIR)):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
+
+
+def pytest_addoption(parser):
+    """Accept --data-dir so it can be forwarded to utils.path's parser."""
+    parser.addoption(
+        "--data-dir",
+        action="store",
+        default=None,
+        help="Data directory for utils.path.StorageManager (defaults to a temp dir).",
+    )
+
+
+if not any(arg == "--data-dir" or arg.startswith("--data-dir=") for arg in sys.argv[1:]):
+    sys.argv.append(f"--data-dir={tempfile.mkdtemp(prefix='src-py-tests-data-')}")
+
+from _fakes import FakeProvider, make_ohlcv  # noqa: E402  (after sys.path setup)
+
+
+# ---------------------------------------------------------------------------
+# Market data
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ohlcv_factory():
+    """Factory for deterministic synthetic OHLCV frames."""
+    return make_ohlcv
+
+
+@pytest.fixture
+def market_data() -> dict:
+    """Indicator-augmented frames for three tickers (ready for TradingEnv)."""
+    from rl_pipeline.data import add_indicators
+
+    return {
+        ticker: add_indicators(make_ohlcv(seed=index + 1))
+        for index, ticker in enumerate(("AAA", "BBB", "CCC"))
+    }
+
+
+# ---------------------------------------------------------------------------
+# LLM backend substitute
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def fake_provider(monkeypatch):
+    """Register a FakeProvider and make it the active provider/model."""
+    import llm.main as llm_main
+    from llm.providers import PROVIDER_REGISTRY
+
+    provider = FakeProvider()
+    monkeypatch.setitem(PROVIDER_REGISTRY, "fake", provider)
+    monkeypatch.setattr(llm_main, "active_provider_id", "fake")
+    monkeypatch.setattr(llm_main, "active_model", "fake-model")
+    return provider
+
+
+@pytest.fixture
+def register_provider(monkeypatch):
+    """Register an arbitrary provider double in the real registry."""
+    from llm.providers import PROVIDER_REGISTRY
+
+    def _register(provider, provider_id):
+        # keep the double's advertised id in sync with its registry key
+        if hasattr(provider, "id"):
+            provider.id = provider_id
+        monkeypatch.setitem(PROVIDER_REGISTRY, provider_id, provider)
+        return provider
+
+    return _register
+
+
+# ---------------------------------------------------------------------------
+# Output isolation
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def isolated_output_dir(tmp_path, monkeypatch):
+    """Point every OUTPUT_DIR consumer at a per-test temp directory.
+
+    Modules bind ``OUTPUT_DIR`` at import time (``from config import OUTPUT_DIR``),
+    so each module-level reference has to be patched individually.
+    """
+    import config
+    import llm.main as llm_main
+    import rl_pipeline.main as rl_main
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(config, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(llm_main, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(rl_main, "OUTPUT_DIR", output_dir)
+    return output_dir
+
+
+# ---------------------------------------------------------------------------
+# Committed sample + FastAPI client
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def recommendations_sample():
+    """The committed recommendations.json sample, parsed."""
+    with (SRC_PY_DIR / "recommendations.json").open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+@pytest.fixture(scope="session")
+def api_client():
+    """A FastAPI TestClient for src-py/main.py."""
+    from fastapi.testclient import TestClient
+
+    import main as src_py_main
+
+    return TestClient(src_py_main.app)
+````
+
+## File: src-py/tests/test_api_errors.py
+````python
+"""FastAPI layer: parameter validation, error mapping and fallback values.
+
+The routes import their collaborators into the ``main`` module namespace, so
+tests monkeypatch ``main`` attributes to drive each error branch without
+touching real LLM/RL machinery.
+"""
+
+import pytest
+import requests
+
+import main as app_module
+from _fakes import FakeProvider
+from config import TICKERS
+
+
+# ---------------------------------------------------------------------------
+# Basic / providers
+# ---------------------------------------------------------------------------
+
+def test_health_returns_ok(api_client):
+    response = api_client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_llm_providers_lists_the_registry(api_client, fake_provider, monkeypatch):
+    from llm.providers import OllamaProvider
+
+    # keep the localhost availability probe deterministic/offline
+    monkeypatch.setattr(OllamaProvider, "is_available", lambda self: False)
+
+    response = api_client.get("/llm/providers")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["active"] == {"provider": "fake", "model": "fake-model"}
+    assert any(provider["id"] == "fake" for provider in body["providers"])
+    assert all(
+        {"id", "name", "available", "status", "setup_hint"} <= set(provider)
+        for provider in body["providers"]
+    )
+
+
+def test_llm_models_returns_models_for_the_active_provider(
+    api_client, fake_provider, monkeypatch
+):
+    from llm.providers import OllamaProvider
+
+    monkeypatch.setattr(OllamaProvider, "is_available", lambda self: True)
+
+    response = api_client.get("/llm/models", params={"provider": "fake"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "fake"
+    assert body["current_model"] == "fake-model"
+    assert body["ollama_running"] is True
+    assert body["models"][0]["name"] == "fake-model"
+
+
+def test_llm_models_rejects_an_unavailable_provider(api_client, register_provider):
+    register_provider(FakeProvider(available=False), "unavailable")
+
+    response = api_client.get("/llm/models", params={"provider": "unavailable"})
+
+    assert response.status_code == 400
+
+
+def test_llm_models_maps_backend_failure_to_503(api_client, monkeypatch):
+    def boom(provider_id="ollama"):
+        raise requests.exceptions.ConnectionError("no ollama")
+
+    monkeypatch.setattr(app_module, "list_models", boom)
+
+    response = api_client.get("/llm/models")
+
+    assert response.status_code == 503
+
+
+# ---------------------------------------------------------------------------
+# Model switching
+# ---------------------------------------------------------------------------
+
+def test_set_model_rejects_unknown_provider(api_client, fake_provider):
+    response = api_client.post("/llm/model", json={"provider": "ghost", "model": "m"})
+
+    assert response.status_code == 404
+
+
+def test_set_model_rejects_unavailable_provider(api_client, register_provider):
+    register_provider(FakeProvider(available=False), "unavailable")
+
+    response = api_client.post(
+        "/llm/model", json={"provider": "unavailable", "model": "fake-model"}
+    )
+
+    assert response.status_code == 400
+
+
+def test_set_model_rejects_a_model_that_is_not_downloaded(api_client, fake_provider):
+    response = api_client.post("/llm/model", json={"provider": "fake", "model": "ghost"})
+
+    assert response.status_code == 404
+
+
+def test_set_model_accepts_a_valid_selection(api_client, fake_provider):
+    response = api_client.post(
+        "/llm/model", json={"provider": "fake", "model": "fake-model"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert response.json()["active"] == {"provider": "fake", "model": "fake-model"}
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+def test_chat_rejects_a_missing_message(api_client):
+    assert api_client.post("/chat", json={}).status_code == 422
+    assert api_client.post("/chat", json={"wrong": "field"}).status_code == 422
+
+
+def test_chat_maps_valueerror_to_400(api_client, monkeypatch):
+    def boom(message, model=None, provider_id=None):
+        raise ValueError("bad provider")
+
+    monkeypatch.setattr(app_module, "handle_chat_interaction", boom)
+
+    response = api_client.post("/chat", json={"message": "hi"})
+
+    assert response.status_code == 400
+    assert "bad provider" in response.json()["detail"]
+
+
+def test_chat_maps_backend_failure_to_503(api_client, monkeypatch):
+    def boom(message, model=None, provider_id=None):
+        raise requests.exceptions.ConnectionError("no ollama")
+
+    monkeypatch.setattr(app_module, "handle_chat_interaction", boom)
+
+    response = api_client.post("/chat", json={"message": "hi"})
+
+    assert response.status_code == 503
+
+
+# ---------------------------------------------------------------------------
+# Training / evaluation
+# ---------------------------------------------------------------------------
+
+def test_train_returns_valid_tickers(api_client, monkeypatch):
+    monkeypatch.setattr(app_module, "train_model", lambda **kwargs: (None, ["AAPL"]))
+
+    response = api_client.post("/train", json={"model_name": "unit_model"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["model_name"] == "unit_model"
+    assert body["valid_tickers"] == ["AAPL"]
+
+
+def test_train_maps_failure_to_500(api_client, monkeypatch):
+    def boom(**kwargs):
+        raise RuntimeError("training exploded")
+
+    monkeypatch.setattr(app_module, "train_model", boom)
+
+    response = api_client.post("/train", json={"model_name": "unit_model"})
+
+    assert response.status_code == 500
+    assert "training exploded" in response.json()["detail"]
+
+
+def test_evaluate_returns_the_generated_payload(api_client, monkeypatch, tmp_path):
+    json_path = tmp_path / "recommendations.json"
+    payload = {
+        "budget": 5000.0,
+        "cash_remaining": 4171.08,
+        "eval_period": "2025-01-01 -> 2026-06-01",
+        "backtest_summary": {
+            "rl_return_pct": 40.08,
+            "bh_return_pct": 40.12,
+            "sharpe": 1.45,
+            "max_drawdown_pct": 17.88,
+        },
+        "allocations": [],
+    }
+    monkeypatch.setattr(app_module, "load_trained_model", lambda name: object())
+    monkeypatch.setattr(
+        app_module, "generate_recommendations", lambda **kwargs: (json_path, payload)
+    )
+
+    response = api_client.post("/evaluate", json={"model_name": "unit_model"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["json_path"] == str(json_path)
+    assert body["data"] == payload
+
+
+def test_evaluate_unknown_model_reports_an_error(api_client, monkeypatch):
+    """Unknown models report an error, but the broad ``except`` re-wraps the
+    intended 404 as a 500 - this pins the current behaviour."""
+    monkeypatch.setattr(app_module, "load_trained_model", lambda name: None)
+
+    response = api_client.post("/evaluate", json={"model_name": "ghost"})
+
+    assert response.status_code == 500
+    assert "not found" in response.json()["detail"]
+
+
+def test_evaluate_maps_failure_to_500(api_client, monkeypatch):
+    def boom(name):
+        raise RuntimeError("evaluation exploded")
+
+    monkeypatch.setattr(app_module, "load_trained_model", boom)
+
+    response = api_client.post("/evaluate", json={"model_name": "unit_model"})
+
+    assert response.status_code == 500
+    assert "evaluation exploded" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Recommendation formatter fallback
+# ---------------------------------------------------------------------------
+
+def test_generate_recommendation_formats_allocations(monkeypatch):
+    from llm.main import Explanation, Recommendation
+
+    explanation = Recommendation(
+        budget=5000.0,
+        cash_remaining=3000.0,
+        eval_period="2025-01-01 -> 2025-06-01",
+        backtest_summary={},
+        allocations=[Explanation("NVDA", "BUY", "cheap relative to momentum")],
+    )
+    monkeypatch.setattr(app_module, "generate_explanation", lambda name: explanation)
+
+    text = app_module.generate_recommendation()
+
+    assert "**NVDA** (BUY): cheap relative to momentum" in text
+
+
+def test_generate_recommendation_falls_back_on_empty_allocations(monkeypatch):
+    from llm.main import Recommendation
+
+    explanation = Recommendation(
+        budget=5000.0,
+        cash_remaining=5000.0,
+        eval_period="2025-01-01 -> 2025-06-01",
+        backtest_summary={},
+        allocations=[],
+    )
+    monkeypatch.setattr(app_module, "generate_explanation", lambda name: explanation)
+
+    assert app_module.generate_recommendation() == "Failed to generate explanation list"
+
+
+def test_tickers_constant_is_still_the_default_universe():
+    assert TICKERS == ["AAPL", "MSFT", "NVDA"]
+````
+
+## File: src-py/tests/test_data_and_environment.py
+````python
+"""rl_pipeline.data + rl_pipeline.environment: valid inputs, fallbacks, errors."""
+
+import numpy as np
+import pandas as pd
+import pytest
+
+import config
+import rl_pipeline.data as data_mod
+from config import LOOKBACK, MAX_WEIGHT
+from rl_pipeline.environment import TradingEnv
+
+
+# ---------------------------------------------------------------------------
+# add_indicators
+# ---------------------------------------------------------------------------
+
+def test_add_indicators_appends_feature_columns(ohlcv_factory):
+    """Valid OHLCV input gains exactly the feature columns the env needs."""
+    out = data_mod.add_indicators(ohlcv_factory(seed=1))
+
+    for column in ("rsi", "macd_hist", "bb_pct", "atr"):
+        assert column in out.columns
+    assert not out[["rsi", "macd_hist", "bb_pct", "atr"]].isna().any().any()
+
+
+def test_add_indicators_drops_warmup_rows(ohlcv_factory):
+    """Indicator warm-up NaNs are dropped, leaving a usable frame."""
+    raw = ohlcv_factory(seed=2)
+    out = data_mod.add_indicators(raw.copy())
+
+    assert len(out) < len(raw)
+    assert out.index.is_monotonic_increasing
+
+
+def test_add_indicators_rsi_stays_within_bounds(ohlcv_factory):
+    out = data_mod.add_indicators(ohlcv_factory(seed=3))
+
+    assert out["rsi"].between(0.0, 100.0).all()
+
+
+def test_add_indicators_rejects_frame_without_ohlcv_columns():
+    """Invalid input (missing OHLCV columns) raises instead of returning junk."""
+    with pytest.raises(KeyError):
+        data_mod.add_indicators(pd.DataFrame({"Close": [1.0, 2.0, 3.0]}))
+
+
+# ---------------------------------------------------------------------------
+# download_market_data (yfinance replaced by a fake)
+# ---------------------------------------------------------------------------
+
+class _FakeYFDownload:
+    def __init__(self, frames):
+        self.frames = frames
+        self.calls = []
+
+    def __call__(self, ticker, start=None, end=None, progress=False, auto_adjust=True):
+        self.calls.append((ticker, start, end))
+        return self.frames[ticker].copy()
+
+
+def test_download_market_data_augments_fresh_frames(monkeypatch, ohlcv_factory):
+    fake = _FakeYFDownload({"AAA": ohlcv_factory(seed=4)})
+    monkeypatch.setattr(data_mod.yf, "download", fake)
+
+    out = data_mod.download_market_data(["AAA"], "2025-01-01", "2025-06-01")
+
+    assert list(out) == ["AAA"]
+    assert "rsi" in out["AAA"].columns
+    assert fake.calls == [("AAA", "2025-01-01", "2025-06-01")]
+
+
+def test_download_market_data_skips_thin_history(monkeypatch, ohlcv_factory):
+    """A ticker with too little history is skipped, not a hard failure."""
+    fake = _FakeYFDownload(
+        {
+            "THIN": ohlcv_factory(seed=5, rows=10),  # < LOOKBACK + 30
+            "GOOD": ohlcv_factory(seed=6),
+        }
+    )
+    monkeypatch.setattr(data_mod.yf, "download", fake)
+
+    out = data_mod.download_market_data(["THIN", "GOOD"], "2025-01-01", "2025-06-01")
+
+    assert list(out) == ["GOOD"]
+
+
+def test_download_market_data_skips_empty_frames(monkeypatch, ohlcv_factory):
+    """An empty download (bad ticker) falls back to omission."""
+    fake = _FakeYFDownload(
+        {
+            "EMPTY": ohlcv_factory(seed=7).iloc[0:0],
+            "GOOD": ohlcv_factory(seed=8),
+        }
+    )
+    monkeypatch.setattr(data_mod.yf, "download", fake)
+
+    out = data_mod.download_market_data(["EMPTY", "GOOD"], "2025-01-01", "2025-06-01")
+
+    assert list(out) == ["GOOD"]
+
+
+def test_download_market_data_flattens_multiindex_columns(monkeypatch, ohlcv_factory):
+    """yfinance's MultiIndex columns are flattened before indicators are added."""
+    frame = ohlcv_factory(seed=9)
+    frame.columns = pd.MultiIndex.from_tuples(
+        [(column, "AAA") for column in frame.columns]
+    )
+    fake = _FakeYFDownload({"AAA": frame})
+    monkeypatch.setattr(data_mod.yf, "download", fake)
+
+    out = data_mod.download_market_data(["AAA"], "2025-01-01", "2025-06-01")
+
+    assert not isinstance(out["AAA"].columns, pd.MultiIndex)
+    assert "rsi" in out["AAA"].columns
+
+
+# ---------------------------------------------------------------------------
+# TradingEnv
+# ---------------------------------------------------------------------------
+
+def test_observation_size_follows_the_documented_formula(market_data):
+    env = TradingEnv(market_data)
+    n_tickers = len(env.tickers)
+
+    assert env.observation_space.shape == (n_tickers * LOOKBACK * config.N_FEAT + n_tickers + 1,)
+    assert env.action_space.shape == (n_tickers,)
+
+
+def test_reset_starts_flat_and_in_cash(market_data):
+    env = TradingEnv(market_data, budget=1000.0)
+
+    obs, info = env.reset()
+
+    assert obs.shape == env.observation_space.shape
+    assert env._cash == 1000.0
+    assert np.all(env._shares == 0)
+    assert info == {}
+
+
+def test_buy_action_is_capped_by_max_weight(market_data):
+    """A full-strength signal still respects MAX_WEIGHT and pays commission."""
+    env = TradingEnv(market_data, budget=5000.0)
+    env.reset()
+    price = float(env.closes["AAA"][env._i])
+
+    env.step(np.array([1.0, 0.0, 0.0], dtype=np.float32))
+
+    assert env._shares[0] == pytest.approx(5000.0 * MAX_WEIGHT / price, rel=1e-4)
+    assert env._cash < 5000.0  # commission was charged
+
+
+def test_zero_action_leaves_the_portfolio_untouched(market_data):
+    env = TradingEnv(market_data, budget=5000.0)
+    env.reset()
+
+    _, reward, done, truncated, info = env.step(np.zeros(3, dtype=np.float32))
+
+    assert np.all(env._shares == 0)
+    assert env._cash == 5000.0
+    assert reward == pytest.approx(0.0)
+    assert done is False
+    assert truncated is False
+
+
+def test_sell_action_closes_the_position(market_data):
+    env = TradingEnv(market_data, budget=5000.0)
+    env.reset()
+
+    env.step(np.array([1.0, 0.0, 0.0], dtype=np.float32))
+    assert env._shares[0] > 0
+
+    env.step(np.array([-1.0, 0.0, 0.0], dtype=np.float32))
+
+    assert env._shares[0] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_episode_terminates_after_the_last_date(market_data):
+    env = TradingEnv(market_data, budget=1000.0)
+    env.reset()
+    action = np.zeros(3, dtype=np.float32)
+
+    steps = 0
+    done = False
+    while not done:
+        _, _, done, _, _ = env.step(action)
+        steps += 1
+        assert steps < 500  # safety net against an endless episode
+
+    assert env._i >= len(env.dates) - 1
+````
+
+## File: src-py/tests/test_llm_validation.py
+````python
+"""llm package: parameter validation, documented errors and fallback values."""
+
+import json
+
+import pytest
+
+import llm.main as llm_main
+from _fakes import FakeProvider
+from llm.learn import (
+    _extract_json,
+    _parse_json_reply,
+    _validate_flashcards,
+    _validate_guide,
+    generate_flashcards,
+    generate_guide,
+)
+from llm.retrieval import fetch_reference_material
+
+
+# ---------------------------------------------------------------------------
+# Provider / model selection
+# ---------------------------------------------------------------------------
+
+def test_set_active_rejects_unknown_provider():
+    with pytest.raises(KeyError):
+        llm_main.set_active("no-such-provider", "fake-model")
+
+
+def test_set_active_rejects_unavailable_provider(register_provider):
+    register_provider(FakeProvider(available=False), "unavailable")
+
+    with pytest.raises(ValueError, match="not available"):
+        llm_main.set_active("unavailable", "fake-model")
+
+
+def test_set_active_rejects_model_that_is_not_downloaded(fake_provider):
+    with pytest.raises(LookupError, match="not downloaded"):
+        llm_main.set_active("fake", "ghost-model")
+
+
+def test_set_active_stores_a_valid_selection(fake_provider):
+    active = llm_main.set_active("fake", "fake-model")
+
+    assert active == {"provider": "fake", "model": "fake-model"}
+    assert llm_main.get_active() == active
+
+
+def test_list_models_rejects_unavailable_provider(register_provider):
+    register_provider(FakeProvider(available=False), "unavailable")
+
+    with pytest.raises(ValueError):
+        llm_main.list_models("unavailable")
+
+
+def test_chat_requires_a_resolved_model(fake_provider, monkeypatch):
+    monkeypatch.setattr(llm_main, "active_model", "")
+
+    with pytest.raises(ValueError, match="No model selected"):
+        llm_main.chat("system", "user")
+
+
+# ---------------------------------------------------------------------------
+# Guide / flashcard validators
+# ---------------------------------------------------------------------------
+
+def test_validate_guide_rejects_non_object_payload():
+    with pytest.raises(TypeError):
+        _validate_guide(["not", "a", "dict"])
+
+
+def test_validate_guide_requires_at_least_one_step():
+    with pytest.raises(ValueError, match="steps"):
+        _validate_guide({"title": "t", "steps": []})
+
+
+def test_validate_guide_requires_title_and_content_per_step():
+    with pytest.raises(ValueError, match="title"):
+        _validate_guide({"steps": [{"title": "only a title"}]})
+
+    with pytest.raises(ValueError, match="content"):
+        _validate_guide({"steps": [{"title": "t", "content": ""}]})
+
+
+def test_validate_guide_falls_back_to_defaults():
+    """Missing/invalid optional fields must not blow up - they fall back."""
+    guide = _validate_guide(
+        {
+            "steps": [{"title": "a", "content": "b"}],
+            "key_takeaways": "not-a-list",
+        }
+    )
+
+    assert guide["title"] == "Untitled guide"
+    assert guide["summary"] == ""
+    assert guide["key_takeaways"] == []
+    assert guide["grounded"] is False
+
+
+def test_validate_flashcards_requires_non_empty_cards():
+    with pytest.raises(ValueError, match="cards"):
+        _validate_flashcards({"cards": []})
+
+
+def test_validate_flashcards_requires_both_sides():
+    with pytest.raises(ValueError, match="front"):
+        _validate_flashcards({"cards": [{"front": "q"}]})
+
+    with pytest.raises(ValueError, match="back"):
+        _validate_flashcards({"cards": [{"front": "q", "back": ""}]})
+
+
+def test_validate_flashcards_accepts_a_bare_list():
+    assert _validate_flashcards([{"front": "q", "back": "a"}]) == [
+        {"front": "q", "back": "a"}
+    ]
+
+
+# ---------------------------------------------------------------------------
+# JSON extraction / parsing
+# ---------------------------------------------------------------------------
+
+def test_extract_json_reads_a_fenced_block():
+    assert _extract_json('prefix\n```json\n{"a": 1}\n```\nsuffix') == '{"a": 1}'
+
+
+def test_extract_json_reads_a_bare_object_from_prose():
+    assert _extract_json('Sure: {"a": 1} done') == '{"a": 1}'
+
+
+def test_extract_json_ignores_braces_inside_strings():
+    text = '{"a": "value with } brace"}'
+
+    assert _extract_json(text) == text
+
+
+def test_extract_json_without_json_raises_valueerror():
+    with pytest.raises(ValueError, match="valid JSON"):
+        _extract_json("no structured output here")
+
+
+def test_parse_json_reply_with_malformed_json_raises_valueerror():
+    with pytest.raises(ValueError, match="parseable"):
+        _parse_json_reply('{"a": 1,}')
+
+
+# ---------------------------------------------------------------------------
+# Generation parameters
+# ---------------------------------------------------------------------------
+
+def test_generate_flashcards_requires_a_topic(fake_provider):
+    with pytest.raises(ValueError, match="Topic is required"):
+        generate_flashcards("   ")
+
+
+def test_generate_guide_requires_a_topic(fake_provider):
+    with pytest.raises(ValueError, match="Topic is required"):
+        generate_guide("")
+
+
+def test_generate_flashcards_clamps_a_too_small_count(fake_provider):
+    fake_provider.replies = [json.dumps({"cards": [{"front": "q", "back": "a"}]})]
+
+    generate_flashcards("ETFs", count=1)
+
+    assert "Create 3 flashcards" in fake_provider.calls[-1]["user_prompt"]
+
+
+def test_generate_flashcards_clamps_a_too_large_count(fake_provider):
+    fake_provider.replies = [json.dumps({"cards": [{"front": "q", "back": "a"}]})]
+
+    generate_flashcards("ETFs", count=999)
+
+    assert "Create 25 flashcards" in fake_provider.calls[-1]["user_prompt"]
+
+
+def test_generate_guide_grounding_requires_sources(fake_provider):
+    """The model claiming grounded=True must not win over an empty retrieval."""
+    fake_provider.replies = [
+        json.dumps(
+            {
+                "title": "t",
+                "summary": "s",
+                "steps": [{"title": "a", "content": "b"}],
+                "key_takeaways": [],
+                "grounded": True,
+            }
+        )
+    ]
+
+    guide = generate_guide("RSI", reference_material=[])
+
+    assert guide["grounded"] is False
+    assert guide["sources"] == []
+
+
+def test_generate_guide_attaches_sources(fake_provider):
+    sources = [{"title": "RSI", "url": "https://example.test/rsi", "extract": "x" * 200}]
+    fake_provider.replies = [
+        json.dumps(
+            {
+                "title": "t",
+                "summary": "s",
+                "steps": [{"title": "a", "content": "b"}],
+                "key_takeaways": [],
+                "grounded": True,
+            }
+        )
+    ]
+
+    guide = generate_guide("RSI", reference_material=sources)
+
+    assert guide["sources"] == sources
+    assert guide["grounded"] is True
+
+
+def test_generate_guide_defaults_to_retrieval_when_none_is_supplied(
+    fake_provider, monkeypatch
+):
+    retrieved = []
+    monkeypatch.setattr(
+        "llm.learn.fetch_reference_material",
+        lambda topic: retrieved.append(topic) or [],
+    )
+    fake_provider.replies = [
+        json.dumps(
+            {
+                "title": "t",
+                "summary": "s",
+                "steps": [{"title": "a", "content": "b"}],
+                "key_takeaways": [],
+                "grounded": False,
+            }
+        )
+    ]
+
+    generate_guide("RSI")
+
+    assert retrieved == ["RSI"]
+
+
+# ---------------------------------------------------------------------------
+# Retrieval fallback
+# ---------------------------------------------------------------------------
+
+def test_fetch_reference_material_returns_empty_for_a_blank_topic():
+    assert fetch_reference_material("") == []
+    assert fetch_reference_material("   ") == []
+````
+
+## File: src-py/tests/test_prompts.py
+````python
+"""Prompt attribution: each subsystem must send its own system prompt.
+
+The FakeProvider records every ``chat()`` call, so these tests assert *which*
+system prompt (and temperature) each feature sends - chat, recommendations,
+guide and flashcards must not bleed into one another.
+"""
+
+import json
+
+from _schema import assert_valid_recommendations_payload
+from llm.learn import (
+    FLASHCARD_SYSTEM_PROMPT,
+    FLASHCARD_TEMPERATURE,
+    GUIDE_SYSTEM_PROMPT,
+    GUIDE_TEMPERATURE,
+    generate_flashcards,
+    generate_guide,
+)
+from llm.main import SYSTEM_PROMPTS, generate_explanation, handle_chat_interaction
+
+GUIDE_PAYLOAD = {
+    "title": "RSI",
+    "summary": "Relative strength index explained.",
+    "steps": [{"title": "What RSI measures", "content": "It measures momentum."}],
+    "key_takeaways": ["RSI ranges from 0 to 100."],
+    "grounded": True,
+}
+
+CARDS_PAYLOAD = {
+    "cards": [{"front": "What is RSI?", "back": "A momentum oscillator."}]
+}
+
+ALLOCATION = {
+    "ticker": "NVDA",
+    "action": "BUY",
+    "price": 210.89,
+    "shares": 3.9305,
+    "dollar_value": 828.92,
+    "pct_of_budget": 16.6,
+    "rsi": 46.3,
+    "macd_hist": -2.1629,
+    "bb_pct": 0.391,
+}
+
+RECOMMENDATIONS_PAYLOAD = {
+    "budget": 5000.0,
+    "cash_remaining": 4171.08,
+    "eval_period": "2025-01-01 -> 2026-06-01",
+    "backtest_summary": {
+        "rl_return_pct": 40.08,
+        "bh_return_pct": 40.12,
+        "sharpe": 1.45,
+        "max_drawdown_pct": 17.88,
+    },
+    "allocations": [ALLOCATION],
+}
+
+
+# ---------------------------------------------------------------------------
+# Function-level attribution
+# ---------------------------------------------------------------------------
+
+def test_chat_helper_uses_the_chat_system_prompt(fake_provider):
+    fake_provider.replies = ["teaching answer"]
+
+    handle_chat_interaction("What is an ETF?")
+
+    call = fake_provider.calls[-1]
+    assert call["system_prompt"] == SYSTEM_PROMPTS["CHAT"]
+    assert call["user_prompt"] == "What is an ETF?"
+
+
+def test_guide_uses_the_guide_prompt_and_low_temperature(fake_provider):
+    fake_provider.replies = [json.dumps(GUIDE_PAYLOAD)]
+
+    generate_guide("RSI", reference_material=[])
+
+    call = fake_provider.calls[-1]
+    assert call["system_prompt"] == GUIDE_SYSTEM_PROMPT
+    assert call["temperature"] == GUIDE_TEMPERATURE
+    assert call["temperature"] < 0.7  # low temperature keeps grounded guides stable
+
+
+def test_flashcards_use_the_flashcard_prompt(fake_provider):
+    fake_provider.replies = [json.dumps(CARDS_PAYLOAD)]
+
+    generate_flashcards("RSI", count=5)
+
+    call = fake_provider.calls[-1]
+    assert call["system_prompt"] == FLASHCARD_SYSTEM_PROMPT
+    assert call["temperature"] == FLASHCARD_TEMPERATURE
+
+
+def test_explanations_use_the_recommendations_prompt(fake_provider, isolated_output_dir):
+    (isolated_output_dir / "recommendations.json").write_text(
+        json.dumps(RECOMMENDATIONS_PAYLOAD), encoding="utf-8"
+    )
+    fake_provider.replies = ["NVDA looks attractive because RSI is mid-range."]
+
+    recommendation = generate_explanation("recommendations.json")
+
+    assert len(fake_provider.calls) == 1
+    call = fake_provider.calls[0]
+    assert call["system_prompt"] == SYSTEM_PROMPTS["RECOMMENDATIONS"]
+    assert "NVDA" in call["user_prompt"]
+    assert "BUY" in call["user_prompt"]
+    assert recommendation.allocations[0].ticker == "NVDA"
+    assert (
+        recommendation.allocations[0].justification
+        == "NVDA looks attractive because RSI is mid-range."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Endpoint-level attribution (the surface the frontend hits)
+# ---------------------------------------------------------------------------
+
+def test_chat_endpoint_uses_the_chat_system_prompt(api_client, fake_provider):
+    fake_provider.replies = ["endpoint answer"]
+
+    response = api_client.post("/chat", json={"message": "hi"})
+
+    assert response.status_code == 200
+    assert response.json() == {"reply": "endpoint answer"}
+    assert fake_provider.calls[-1]["system_prompt"] == SYSTEM_PROMPTS["CHAT"]
+
+
+def test_guide_endpoint_uses_the_guide_system_prompt(
+    api_client, fake_provider, monkeypatch
+):
+    monkeypatch.setattr("llm.learn.fetch_reference_material", lambda topic: [])
+    fake_provider.replies = [json.dumps(GUIDE_PAYLOAD)]
+
+    response = api_client.post("/learn/guide", json={"topic": "RSI"})
+
+    assert response.status_code == 200
+    assert fake_provider.calls[-1]["system_prompt"] == GUIDE_SYSTEM_PROMPT
+
+
+def test_flashcards_endpoint_uses_the_flashcard_system_prompt(api_client, fake_provider):
+    fake_provider.replies = [json.dumps(CARDS_PAYLOAD)]
+
+    response = api_client.post("/learn/flashcards", json={"topic": "RSI", "count": 5})
+
+    assert response.status_code == 200
+    assert fake_provider.calls[-1]["system_prompt"] == FLASHCARD_SYSTEM_PROMPT
+
+
+def test_recommendation_payload_used_here_is_itself_valid():
+    """Guard the fixture above against drifting away from the real schema."""
+    assert_valid_recommendations_payload(RECOMMENDATIONS_PAYLOAD)
+````
+
+## File: src-py/tests/test_recommendations_schema.py
+````python
+"""recommendations.json must keep the exact structure its producer and consumer agree on."""
+
+import json
+
+import pytest
+
+import config
+import rl_pipeline.main as rl_main
+from _fakes import DummyModel
+from _schema import (
+    ALLOCATION_KEYS,
+    BACKTEST_OPTIONAL_KEYS,
+    BACKTEST_REQUIRED_KEYS,
+    EVOLUTION_KEYS,
+    TOP_LEVEL_KEYS,
+    assert_valid_recommendations_payload,
+)
+
+TICKERS = ["AAA", "BBB", "CCC"]
+
+
+# ---------------------------------------------------------------------------
+# Committed sample file (the shape the frontend already consumes)
+# ---------------------------------------------------------------------------
+
+def test_committed_sample_matches_the_schema(recommendations_sample):
+    assert_valid_recommendations_payload(recommendations_sample)
+
+
+def test_committed_sample_has_exactly_the_expected_keys(recommendations_sample):
+    assert set(recommendations_sample) == TOP_LEVEL_KEYS
+    assert set(recommendations_sample["backtest_summary"]) == BACKTEST_REQUIRED_KEYS
+    for allocation in recommendations_sample["allocations"]:
+        assert set(allocation) == ALLOCATION_KEYS
+
+
+def test_committed_sample_tickers_are_unique(recommendations_sample):
+    tickers = [allocation["ticker"] for allocation in recommendations_sample["allocations"]]
+
+    assert len(tickers) == len(set(tickers))
+    assert all(isinstance(ticker, str) and ticker for ticker in tickers)
+
+
+def test_committed_sample_predates_alpha_margin(recommendations_sample):
+    """Documents the drift: the current producer adds alpha_margin, the sample does not."""
+    assert "alpha_margin" not in recommendations_sample["backtest_summary"]
+    assert "alpha_margin" in BACKTEST_OPTIONAL_KEYS
+
+
+# ---------------------------------------------------------------------------
+# Producer output (generate_recommendations)
+# ---------------------------------------------------------------------------
+
+def _stub_metrics():
+    return {
+        "rl_return_pct": 12.5,
+        "bh_return_pct": 9.0,
+        "sharpe": 1.1,
+        "max_drawdown": 7.5,
+        # Raw daily-return paths consumed by build_evolution_curves.
+        "tr_rl": {"2025-01-02": 0.02, "2025-01-03": -0.01, "2025-01-06": 0.005},
+        "tr_bh": {"2025-01-02": 0.015, "2025-01-03": -0.008, "2025-01-06": 0.004},
+    }
+
+
+def test_generate_recommendations_writes_a_schema_valid_file(
+    monkeypatch, market_data, isolated_output_dir
+):
+    monkeypatch.setattr(rl_main, "download_market_data", lambda tickers, start, end: market_data)
+    monkeypatch.setattr(rl_main, "run_backtest_suite", lambda *args, **kwargs: _stub_metrics())
+    model = DummyModel([0.5, -0.5, 0.0])
+
+    path, payload = rl_main.generate_recommendations(
+        model=model,
+        valid_tickers=TICKERS,
+        eval_start="2025-01-01",
+        eval_end="2025-06-01",
+        budget=5000.0,
+        output_filename="recommendations.json",
+    )
+
+    # file path contract: OUTPUT_DIR / output_filename, returned resolved
+    assert path == (isolated_output_dir / "recommendations.json").resolve()
+    assert path.is_file()
+    assert json.loads(path.read_text(encoding="utf-8")) == payload
+
+    # structure contract
+    assert_valid_recommendations_payload(
+        payload,
+        require_alpha_margin=True,
+        max_weight_pct=config.MAX_WEIGHT * 100,
+    )
+    # The current producer also appends the evolution curves block.
+    assert set(payload) == TOP_LEVEL_KEYS | {"evolution"}
+    assert set(payload["backtest_summary"]) == BACKTEST_REQUIRED_KEYS | BACKTEST_OPTIONAL_KEYS
+
+
+def test_generate_recommendations_payload_values(
+    monkeypatch, market_data, isolated_output_dir
+):
+    monkeypatch.setattr(rl_main, "download_market_data", lambda tickers, start, end: market_data)
+    monkeypatch.setattr(rl_main, "run_backtest_suite", lambda *args, **kwargs: _stub_metrics())
+    model = DummyModel([0.5, -0.5, 0.0])
+
+    _, payload = rl_main.generate_recommendations(
+        model=model,
+        valid_tickers=TICKERS,
+        eval_start="2025-01-01",
+        eval_end="2025-06-01",
+        budget=5000.0,
+    )
+
+    assert payload["budget"] == 5000.0
+    assert payload["eval_period"] == "2025-01-01 -> 2025-06-01"
+    assert payload["backtest_summary"]["rl_return_pct"] == pytest.approx(12.5)
+    assert payload["backtest_summary"]["alpha_margin"] == pytest.approx(3.5)
+
+    by_ticker = {allocation["ticker"]: allocation for allocation in payload["allocations"]}
+    assert by_ticker["AAA"]["action"] == "BUY"
+    assert by_ticker["AAA"]["dollar_value"] == pytest.approx(5000.0 * config.MAX_WEIGHT, abs=0.01)
+    assert by_ticker["BBB"]["action"] == "SELL"
+    assert by_ticker["CCC"]["action"] == "HOLD"
+    # cash left over after the BUY
+    assert payload["cash_remaining"] == pytest.approx(5000.0 - by_ticker["AAA"]["dollar_value"], abs=0.02)
+
+
+# ---------------------------------------------------------------------------
+# Consumer view of the same file
+# ---------------------------------------------------------------------------
+
+def test_consumer_reads_the_committed_sample(
+    fake_provider, isolated_output_dir, recommendations_sample
+):
+    """generate_explanation must accept the shipped file and explain each row."""
+    (isolated_output_dir / "recommendations.json").write_text(
+        json.dumps(recommendations_sample), encoding="utf-8"
+    )
+    fake_provider.replies = ["first", "second", "third"]
+
+    from llm.main import generate_explanation
+
+    recommendation = generate_explanation("recommendations.json")
+
+    assert [allocation.ticker for allocation in recommendation.allocations] == [
+        allocation["ticker"] for allocation in recommendations_sample["allocations"]
+    ]
+    assert [allocation.action for allocation in recommendation.allocations] == [
+        allocation["action"] for allocation in recommendations_sample["allocations"]
+    ]
+    assert recommendation.budget == recommendations_sample["budget"]
+    assert recommendation.to_dict()["allocations"][0].keys() == {
+        "ticker",
+        "action",
+        "justification",
+    }
+````
+
+## File: src-py/tests/test_rl_allocations.py
+````python
+"""rl_pipeline.main: allocation thresholds, weight cap and error paths."""
+
+import pytest
+
+import rl_pipeline.main as rl_main
+from _fakes import DummyModel
+from config import MAX_WEIGHT
+from rl_pipeline.main import _calculate_allocations
+
+TICKERS = ["AAA", "BBB", "CCC"]
+
+
+def test_positive_action_becomes_a_capped_buy(market_data):
+    model = DummyModel([0.9, 0.3, 0.0])
+
+    allocations = _calculate_allocations(model, market_data, TICKERS, budget=5000.0)
+
+    by_ticker = {allocation.ticker: allocation for allocation in allocations}
+    assert by_ticker["AAA"].action == "BUY"
+    # 0.9 is clamped to MAX_WEIGHT
+    assert by_ticker["AAA"].dollar_value == pytest.approx(5000.0 * MAX_WEIGHT, abs=0.01)
+    assert by_ticker["AAA"].pct_of_budget == pytest.approx(MAX_WEIGHT * 100, abs=0.11)
+    assert by_ticker["BBB"].action == "BUY"
+    assert by_ticker["BBB"].dollar_value == pytest.approx(1500.0, abs=0.01)
+
+
+def test_actions_inside_the_dead_zone_fall_back_to_hold(market_data):
+    """Signals with |a| <= 0.05 are HOLD (note: float32 rounds 0.05 slightly
+    above 0.05, so the dead zone is tested just inside the boundary)."""
+    model = DummyModel([0.04, -0.04, 0.0])
+
+    allocations = _calculate_allocations(model, market_data, TICKERS, budget=1000.0)
+
+    assert {allocation.action for allocation in allocations} == {"HOLD"}
+    assert all(allocation.dollar_value == 0.0 for allocation in allocations)
+
+
+def test_negative_action_becomes_a_zero_dollar_sell(market_data):
+    model = DummyModel([-0.4, 0.0, 0.0])
+
+    allocations = _calculate_allocations(model, market_data, TICKERS, budget=1000.0)
+
+    by_ticker = {allocation.ticker: allocation for allocation in allocations}
+    assert by_ticker["AAA"].action == "SELL"
+    assert by_ticker["AAA"].shares == 0.0
+    assert by_ticker["AAA"].dollar_value == 0.0
+
+
+def test_allocations_are_sorted_by_dollar_value_desc(market_data):
+    model = DummyModel([0.1, 0.3, 0.0])
+
+    allocations = _calculate_allocations(model, market_data, TICKERS, budget=5000.0)
+
+    values = [allocation.dollar_value for allocation in allocations]
+    assert values == sorted(values, reverse=True)
+    assert allocations[0].ticker == "BBB"
+
+
+def test_calculate_allocations_rejects_an_action_vector_of_wrong_length(market_data):
+    """A mismatched action vector is an error, not silently truncated."""
+    model = DummyModel([0.3])  # only one action for three tickers
+
+    try:
+        _calculate_allocations(model, market_data, TICKERS, budget=1000.0)
+    except IndexError:
+        pass
+    else:  # pragma: no cover - documents current behaviour
+        raise AssertionError("expected IndexError for a too-short action vector")
+
+
+def test_train_model_without_market_data_raises_valueerror(monkeypatch, isolated_output_dir):
+    monkeypatch.setattr(rl_main, "download_market_data", lambda tickers, start, end: {})
+
+    with pytest.raises(ValueError, match="No market data"):
+        rl_main.train_model(
+            tickers=["AAPL"],
+            train_start="2021-01-01",
+            train_end="2021-06-01",
+            model_name="unit_model",
+        )
+
+
+def test_train_model_saves_the_trained_model(monkeypatch, ohlcv_factory, isolated_output_dir):
+    saved_paths = []
+
+    class _Agent:
+        def save(self, path):
+            saved_paths.append(path)
+
+    monkeypatch.setattr(
+        rl_main,
+        "download_market_data",
+        lambda tickers, start, end: {"AAPL": ohlcv_factory(seed=11)},
+    )
+    monkeypatch.setattr(rl_main, "train_ppo_agent", lambda train_data: _Agent())
+
+    model, valid_tickers = rl_main.train_model(
+        tickers=["AAPL", "GHOST"],
+        train_start="2021-01-01",
+        train_end="2021-06-01",
+        model_name="unit_model",
+    )
+
+    assert valid_tickers == ["AAPL"]  # GHOST had no data and was dropped
+    assert isinstance(model, _Agent)
+    assert saved_paths == [str(isolated_output_dir / "unit_model")]
+````
+
+## File: src-py/tests/test_storage_and_config.py
+````python
+"""StorageManager parameter handling + config constants.
+
+Covers valid values, invalid values that must raise, and the path-resolution
+seam every other module depends on (``config.OUTPUT_DIR`` flows from it).
+"""
+
+from datetime import date
+
+from utils.path import StorageManager
+
+
+# ---------------------------------------------------------------------------
+# StorageManager
+# ---------------------------------------------------------------------------
+
+def test_get_path_requires_initialization(monkeypatch):
+    """Before initialize() the manager must refuse to guess a base dir."""
+    monkeypatch.setattr(StorageManager, "base_dir", None)
+    try:
+        StorageManager.get_path("output")
+    except RuntimeError as error:
+        assert "not initialized" in str(error)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("get_path should raise RuntimeError when uninitialized")
+
+
+def test_initialize_creates_the_base_directory(tmp_path, monkeypatch):
+    """initialize() accepts any path string and creates it."""
+    target = tmp_path / "fresh" / "data"
+    monkeypatch.setattr(StorageManager, "base_dir", None)
+
+    StorageManager.initialize(str(target))
+
+    assert target.is_dir()
+    assert StorageManager.get_path("output") == (target / "output").resolve()
+
+
+def test_get_path_resolves_relative_to_base_dir():
+    """A valid relative path resolves underneath the configured base dir."""
+    base = StorageManager.base_dir
+    resolved = StorageManager.get_path("output/recommendations.json")
+
+    assert resolved.is_absolute()
+    assert resolved == (base / "output" / "recommendations.json").resolve()
+
+
+def test_get_path_blocks_path_traversal():
+    """Invalid (escaping) paths must raise instead of returning a path."""
+    try:
+        StorageManager.get_path("../escape.txt")
+    except PermissionError as error:
+        assert "traversal" in str(error)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("path traversal should raise PermissionError")
+
+
+# ---------------------------------------------------------------------------
+# config
+# ---------------------------------------------------------------------------
+
+def test_budget_is_a_positive_number():
+    import config
+
+    assert isinstance(config.BUDGET, (int, float))
+    assert config.BUDGET > 0
+
+
+def test_max_weight_is_a_fraction():
+    import config
+
+    assert 0 < config.MAX_WEIGHT <= 1.0
+
+
+def test_commission_is_a_small_fraction():
+    import config
+
+    assert 0 <= config.COMMISSION < 0.05
+
+
+def test_feature_columns_match_n_feat():
+    import config
+
+    assert config.N_FEAT == len(config.FEATURE_COLS)
+    assert set(config.FEATURE_COLS) == {"Close", "rsi", "macd_hist", "bb_pct", "atr"}
+
+
+def test_training_window_precedes_evaluation_window():
+    import config
+
+    assert date.fromisoformat(config.TRAIN_START) < date.fromisoformat(config.TRAIN_END)
+    assert date.fromisoformat(config.EVAL_START) < date.fromisoformat(config.EVAL_END)
+
+
+def test_output_dir_is_created_under_the_data_dir():
+    import config
+
+    assert config.OUTPUT_DIR.is_dir()
+    assert config.OUTPUT_DIR.name == "output"
+    assert config.OUTPUT_DIR == StorageManager.get_path("output")
+````
+
+## File: src-py/utils/path.py
+````python
+import argparse
+from pathlib import Path
+
+class StorageManager:
+    base_dir: Path | None = None
+
+    @classmethod
+    def initialize(cls, path_str: str):
+        """Call this exactly once when your sidecar boots up."""
+        cls.base_dir = Path(path_str).resolve()
+        cls.base_dir.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def get_path(cls, relative_path: str) -> Path:
+        """
+        Polishes a relative path, making it absolute against the base directory.
+        """
+        if cls.base_dir is None:
+            raise RuntimeError("StorageManager not initialized. Call initialize() first.")
+
+        target_path = (cls.base_dir / relative_path).resolve()
+
+        if not target_path.is_relative_to(cls.base_dir):
+            raise PermissionError(f"Path traversal attempt blocked: {relative_path}")
+
+        return target_path
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--data-dir', type=str, required=True)
+args, _ = parser.parse_known_args()
+StorageManager.initialize(args.data_dir)
+````
+
+## File: src-py/config.py
+````python
+import warnings
+
+from utils.path import StorageManager
+
+warnings.filterwarnings("ignore")
+
+# assets & capital
+TICKERS = ["AAPL", "MSFT", "NVDA"]
+BUDGET = 5_000.0
+# maximum share of portfolio capital per stock (40%)
+MAX_WEIGHT = 0.40
+# 0.1% per trade transaction execution
+COMMISSION = 0.001
+
+# time frames
+TRAIN_START = "2021-01-01"
+TRAIN_END = "2023-12-31"
+EVAL_START = "2025-01-01"
+EVAL_END = "2026-06-01"
+
+# parameters
+LOOKBACK = 20
+TIMESTEPS = 30_000
+FEATURE_COLS = ["Close", "rsi", "macd_hist", "bb_pct", "atr"]
+N_FEAT = len(FEATURE_COLS)
+
+# putput paths
+OUTPUT_DIR = StorageManager.get_path("output")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Source - https://stackoverflow.com/a/287944
+# Posted by joeld, modified by community. See post "Timeline" for change history
+# Retrieved 2026-06-23, License - CC BY-SA 4.0
+
+class bcolors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+````
+
+## File: src-py/pytest.ini
+````ini
+[pytest]
+testpaths = tests
+addopts = -q
+filterwarnings =
+    # FastAPI's TestClient still imports httpx; upstream wants httpx2 instead.
+    # Pinned to this exact message so other deprecations stay visible.
+    ignore:Using `httpx` with `starlette.testclient` is deprecated
+````
+
+## File: src-py/requirements-dev.txt
+````
+# extra requirements for tests - not bundled by PyInstaller
+pytest>=8.0
 ````
 
 ## File: src/hooks/use-llm.ts
@@ -7131,20 +10106,6 @@ export const settingsRepo = {
     );
   },
 };
-````
-
-## File: src/lib/utils.ts
-````typescript
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-export function generateId(): string {
-  return crypto.randomUUID();
-}
 ````
 
 ## File: src/pages/settings/main-settings.tsx
@@ -7467,13 +10428,15 @@ export const TrainModel = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-    function toggleTicker(tickerValue: string) {
-      setSelectedTickers((prev) =>
-        prev.includes(tickerValue)
-          ? prev.filter((t) => t !== tickerValue)
-          : [...prev, tickerValue]
-      );
-    }
+  function toggleTicker(tickerValue: string) {
+    // ToDo: backend needs to be able to better handle multiple tickers
+    // setSelectedTickers((prev) =>
+    //   prev.includes(tickerValue)
+    //     ? prev.filter((t) => t !== tickerValue)
+    //     : [...prev, tickerValue]
+    // );
+    setSelectedTickers([tickerValue]);
+  }
 
   async function handleTrain(e: React.SubmitEvent) {
     e.preventDefault();
@@ -7694,285 +10657,231 @@ export const TrainModel = () => {
 }
 ````
 
-## File: src-py/rl_pipeline/data.py
-````python
-import pandas as pd
-import yfinance as yf
-import matplotlib
-import matplotlib.pyplot as plt
-
-from config import LOOKBACK, OUTPUT_DIR, bcolors
-
-matplotlib.use("Agg")
-
-def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Appends RSI, MACD, Bollinger Bands, and ATR technical features to the dataset.
-    """
-    c, h, l, v = df["Close"], df["High"], df["Low"], df["Volume"]
-
-    # RSI-14
-    delta = c.diff()
-    df["rsi"] = 100 - 100 / (
-        1 + delta.clip(lower=0).rolling(14).mean()
-        / (-delta.clip(upper=0)).rolling(14).mean().replace(0, 1e-9)
-    )
-
-    # MACD histogram
-    ema12 = c.ewm(span=12, adjust=False).mean()
-    ema26 = c.ewm(span=26, adjust=False).mean()
-    macd = ema12 - ema26
-    df["macd_hist"] = macd - macd.ewm(span=9, adjust=False).mean()
-
-    # Bollinger Band position (20-day, 2σ)
-    sma = c.rolling(20).mean()
-    std = c.rolling(20).std()
-    df["bb_pct"] = (c - (sma - 2*std)) / (4*std + 1e-9)
-
-    # ATR-14
-    tr = pd.concat([h-l, (h-c.shift()).abs(), (l-c.shift()).abs()], axis=1).max(axis=1)
-    df["atr"] = tr.rolling(14).mean()
-
-    return df.dropna()
-
-def download_market_data(tickers: list[str], start: str, end: str) -> dict[str, pd.DataFrame]:
-    """
-    Downloads time-series data and appends indicator columns.
-    """
-    datasets: dict[str, pd.DataFrame] = {}
-
-    # print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Downloading market data ({start} -> {end})")
-
-    for ticker in tickers:
-        raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
-        if isinstance(raw.columns, pd.MultiIndex):
-            raw.columns = raw.columns.get_level_values(0)
-
-        if len(raw) < LOOKBACK + 30:
-            continue
-
-        df = add_indicators(raw.copy())
-        datasets[ticker] = df
-
-        # print(f"    - {ticker}: {len(df)} rows, "
-        #       f"price range ${df['Close'].min():.0f}–${df['Close'].max():.0f}")
-
-    return datasets
-
-def save_diagnostic_chart(train_data: dict[str, pd.DataFrame], target_ticker: str):
-    """
-    Saves close price and RSI analytics for observation verification.
-    """
-    if target_ticker not in train_data:
-        return
-
-    df_vis = train_data[target_ticker]
-    fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
-
-    axes[0].plot(df_vis.index, df_vis["Close"], linewidth=1)
-    axes[0].set_title(f"{target_ticker} - Closing Price (training period)")
-    axes[0].set_ylabel("Price ($)")
-
-    axes[1].plot(df_vis.index, df_vis["rsi"], color="orange", linewidth=1)
-    axes[1].axhline(70, color="red", linestyle="--", linewidth=0.8, label="Overbought 70")
-    axes[1].axhline(30, color="green", linestyle="--", linewidth=0.8, label="Oversold 30")
-    axes[1].set_title("RSI-14")
-    axes[1].set_ylabel("RSI")
-    axes[1].legend()
-
-    plt.tight_layout()
-    chart_path = OUTPUT_DIR / "price_rsi.png"
-    plt.savefig(chart_path, dpi=120)
-    plt.close()
-    print(f"  [{bcolors.OKCYAN}Data{bcolors.ENDC}] Diagnostic chart saved → {chart_path}")
-````
-
-## File: src-py/rl_pipeline/rl_agent.py
-````python
-from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
-
-from rl_pipeline.environment import TradingEnv
-
-from config import TIMESTEPS, OUTPUT_DIR, bcolors
-
-def train_ppo_agent(train_data: dict) -> PPO:
-    """
-    Initializes and trains the Stable-Baselines3 model vectorization framework.
-    """
-    vec_env = make_vec_env(lambda: TradingEnv(train_data), n_envs=1)
-
-    model = PPO(
-        "MlpPolicy",
-        vec_env,
-        learning_rate = 3e-4,
-        n_steps       = 256,
-        batch_size    = 64,
-        n_epochs      = 10,
-        gamma         = 0.99,
-        ent_coef      = 0.01,
-        verbose       = 0,
-        policy_kwargs = dict(net_arch=[128, 64]),
-    )
-
-    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Beginning network policy optimization optimization updates...\n")
-    model.learn(total_timesteps=TIMESTEPS, progress_bar=True)
-
-    model_path = OUTPUT_DIR / "poc_agent"
-    model.save(model_path)
-    # print()
-    # print(f"  [{bcolors.OKCYAN}Agent{bcolors.ENDC}] Policy model weights binary serialized out to: {model_path}.zip")
-
-    return model
-````
-
-## File: src-py/utils/path.py
-````python
-import argparse
-from pathlib import Path
-
-class StorageManager:
-    base_dir: Path | None = None
-
-    @classmethod
-    def initialize(cls, path_str: str):
-        """Call this exactly once when your sidecar boots up."""
-        cls.base_dir = Path(path_str).resolve()
-        cls.base_dir.mkdir(parents=True, exist_ok=True)
-
-    @classmethod
-    def get_path(cls, relative_path: str) -> Path:
-        """
-        Polishes a relative path, making it absolute against the base directory.
-        """
-        if cls.base_dir is None:
-            raise RuntimeError("StorageManager not initialized. Call initialize() first.")
-
-        target_path = (cls.base_dir / relative_path).resolve()
-
-        if not target_path.is_relative_to(cls.base_dir):
-            raise PermissionError(f"Path traversal attempt blocked: {relative_path}")
-
-        return target_path
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--data-dir', type=str, required=True)
-args, _ = parser.parse_known_args()
-StorageManager.initialize(args.data_dir)
-````
-
-## File: src-py/config.py
-````python
-import warnings
-
-from utils.path import StorageManager
-
-warnings.filterwarnings("ignore")
-
-# assets & capital
-TICKERS = ["AAPL", "MSFT", "NVDA"]
-BUDGET = 5_000.0
-# maximum share of portfolio capital per stock (40%)
-MAX_WEIGHT = 0.40
-# 0.1% per trade transaction execution
-COMMISSION = 0.001
-
-# time frames
-TRAIN_START = "2021-01-01"
-TRAIN_END = "2023-12-31"
-EVAL_START = "2025-01-01"
-EVAL_END = "2026-06-01"
-
-# parameters
-LOOKBACK = 20
-TIMESTEPS = 30_000
-FEATURE_COLS = ["Close", "rsi", "macd_hist", "bb_pct", "atr"]
-N_FEAT = len(FEATURE_COLS)
-
-# putput paths
-OUTPUT_DIR = StorageManager.get_path("output")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-# Source - https://stackoverflow.com/a/287944
-# Posted by joeld, modified by community. See post "Timeline" for change history
-# Retrieved 2026-06-23, License - CC BY-SA 4.0
-
-class bcolors:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-````
-
-## File: src/pages/index.tsx
+## File: src/vite-env.d.ts
 ````typescript
-import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon, GraduationCap } from "lucide-react"
-import Chat from "./chat";
-import Evaluation from "./eval";
-import Learn from "./learn/learn";
-import type { NavElement } from "@/types";
-import Settings from "./settings";
+/// <reference types="vite/client" />
+````
 
-export default [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: (
-      <LayoutDashboardIcon />
-    ),
-    page: (
-      <p>Nothing yet</p>
-    ),
-  },
-  {
-    title: "Chat",
-    url: "/chat",
-    icon: (
-      <MessageCircleMore />
-    ),
-    page: (
-      <Chat />
-    ),
-    expandable: true,
-  },
-  {
-    title: "Evaluate",
-    url: "/eval",
-    icon: (
-      <ChartCandlestickIcon />
-    ),
-    page: (
-      <Evaluation />
-    ),
-  },
-  {
-    title: "Learn",
-    url: "/learn",
-    icon: (
-      <GraduationCap />
-    ),
-    page: (
-      <Learn />
-    ),
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    hidenav: true,
-    icon: (
-      <Cog />
-    ),
-    page: (
-      <Settings />
+## File: src-py/build.bat
+````batch
+@echo off
+setlocal enabledelayedexpansion
+
+REM Always operate relative to this script's own location (src-py/)
+pushd "%~dp0"
+
+REM Create the venv if it doesn't exist yet
+if not exist ".venv\Scripts\activate.bat" (
+    echo Creating virtual environment...
+    python -m venv .venv
+    if errorlevel 1 (
+        echo Failed to create virtual environment.
+        popd
+        exit /b 1
     )
-  },
-] satisfies NavElement[];
+)
+
+REM Activate the venv
+call .venv\Scripts\activate.bat
+if errorlevel 1 (
+    echo Failed to activate virtual environment.
+    popd
+    exit /b 1
+)
+
+REM Install/update dependencies
+if exist "requirements.txt" (
+    pip install -r requirements.txt
+    if errorlevel 1 (
+        echo Failed to install dependencies.
+        call .venv\Scripts\deactivate.bat
+        popd
+        exit /b 1
+    )
+) else (
+    echo WARNING: requirements.txt not found, skipping dependency install.
+)
+
+REM Make sure pyinstaller itself is available
+pip show pyinstaller >nul 2>&1
+if errorlevel 1 (
+    echo Installing PyInstaller...
+    pip install pyinstaller
+)
+
+REM Verify that the spec file actually exists before building
+if not exist "app.spec" (
+    echo ERROR: app.spec not found! Please ensure your spec file is in this directory.
+    call .venv\Scripts\deactivate.bat
+    popd
+    exit /b 1
+)
+
+REM Build the Python executable using the spec file
+echo Building Python sidecar via PyInstaller spec file...
+pyinstaller --clean app.spec
+if errorlevel 1 (
+    echo PyInstaller build failed.
+    call .venv\Scripts\deactivate.bat
+    popd
+    exit /b 1
+)
+
+REM Detect the Rust target triple for this machine
+for /f "tokens=2" %%i in ('rustc -Vv ^| findstr "host:"') do set HOST_TRIPLE=%%i
+
+if "%HOST_TRIPLE%"=="" (
+    echo Could not detect Rust host triple. Is rustc installed and on PATH?
+    call .venv\Scripts\deactivate.bat
+    popd
+    exit /b 1
+)
+
+echo Detected target triple: %HOST_TRIPLE%
+
+REM Ensure the destination folder exists
+if not exist "..\src-tauri\binaries" mkdir "..\src-tauri\binaries"
+
+REM Copy the built executable with the required sidecar naming convention
+copy /Y "dist\app.exe" "..\src-tauri\binaries\app-%HOST_TRIPLE%.exe"
+if errorlevel 1 (
+    echo Failed to copy built executable.
+    call .venv\Scripts\deactivate.bat
+    popd
+    exit /b 1
+)
+
+timeout /t 3 /nobreak >nul
+
+echo Done. Sidecar binary placed at ..\src-tauri\binaries\app-%HOST_TRIPLE%.exe
+
+call .venv\Scripts\deactivate.bat
+popd
+endlocal
+````
+
+## File: src-py/requirements.txt
+````
+absl-py==2.4.0
+ale-py==0.12.0
+altgraph==0.17.5
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.14.0
+backtrader==1.9.78.123
+beautifulsoup4==4.15.0
+certifi==2026.6.17
+cffi==2.0.0
+charset-normalizer==3.4.7
+click==8.4.1
+cloudpickle==3.1.2
+colorama==0.4.6
+contourpy==1.3.3
+curl_cffi==0.15.0
+cycler==0.12.1
+distro==1.9.0
+docstring_parser==0.18.0
+Farama-Notifications==0.0.6
+fastapi==0.137.2
+filelock==3.29.4
+fonttools==4.63.0
+fsspec==2026.6.0
+grpcio==1.81.1
+gymnasium==1.3.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.18
+Jinja2==3.1.6
+jiter==0.15.0
+kiwisolver==1.5.0
+Markdown==3.10.2
+markdown-it-py==4.2.0
+MarkupSafe==3.0.3
+matplotlib==3.11.0
+mdurl==0.1.2
+mpmath==1.3.0
+multitasking==0.0.13
+networkx==3.6.1
+numpy==2.5.0
+ollama==0.6.2
+opencv-python==4.13.0.92
+packaging==26.2
+pandas==3.0.3
+peewee==4.1.0
+pefile==2024.8.26
+pillow==12.2.0
+platformdirs==4.10.0
+protobuf==7.35.1
+psutil==7.2.2
+pycparser==3.0
+pydantic==2.13.4
+pydantic_core==2.46.4
+pygame-ce==2.5.7
+Pygments==2.20.0
+pyinstaller==6.21.0
+pyinstaller-hooks-contrib==2026.6
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+pytz==2026.2
+pywin32-ctypes==0.2.3
+requests==2.34.2
+rich==15.0.0
+setuptools==81.0.0
+six==1.17.0
+sniffio==1.3.1
+soupsieve==2.8.4
+stable_baselines3==2.9.0
+starlette==1.3.1
+sympy==1.14.0
+tensorboard==2.20.0
+tensorboard-data-server==0.7.2
+torch==2.12.1
+tqdm==4.68.3
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+tzdata==2026.2
+urllib3==2.7.0
+uvicorn==0.49.0
+websockets==16.0
+Werkzeug==3.1.8
+yfinance==1.4.1
+````
+
+## File: src-tauri/src/lib.rs
+````rust
+// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![greet])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+````
+
+## File: src-tauri/.gitignore
+````
+# Generated by Cargo
+# will have compiled files and executables
+/target/
+
+# Generated by Tauri
+# will have schema files for capabilities auto-completion
+/gen/schemas
+````
+
+## File: src-tauri/build.rs
+````rust
+fn main() {
+    tauri_build::build()
+}
 ````
 
 ## File: src/pages/eval.tsx
@@ -8378,6 +11287,434 @@ export default function Evaluation() {
 }
 ````
 
+## File: src/App.css
+````css
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+````
+
+## File: src/main.tsx
+````typescript
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
+
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
+);
+````
+
+## File: src-tauri/capabilities/default.json
+````json
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "shell:allow-execute",
+    { "identifier": "shell:allow-spawn", "allow": [{ "name": "binaries/app", "sidecar": true }] },
+    "sql:default",
+    "sql:allow-load",
+    "sql:allow-execute",
+    "sql:allow-select",
+    "sql:allow-close"
+  ]
+}
+````
+
+## File: src-tauri/Cargo.toml
+````toml
+[package]
+name = "financial-advisor-app"
+version = "0.1.0"
+description = "A Financial advisor that teaches you trading stocks"
+authors = ["Max Screawn"]
+edition = "2024"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "financial_advisor_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-shell = "2.3.5"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+````
+
+## File: src-tauri/tauri.conf.json
+````json
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "financial-advisor-app",
+  "version": "0.1.0",
+  "identifier": "com.maxsc.financial-advisor-app",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "bun run dev:frontend",
+    "beforeBuildCommand": "bun run build:sidecar && bun run build:frontend",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "financial-advisor-app",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/app"]
+  }
+}
+````
+
+## File: src/pages/index.tsx
+````typescript
+import { LayoutDashboardIcon, MessageCircleMore, Cog, ChartCandlestickIcon, ChartSplineIcon, GraduationCap } from "lucide-react"
+import type { NavElement } from "@/types";
+import Chat from "./chat";
+import Evaluation from "./eval";
+import Predictions from "./predict";
+import Learn from "./learn/learn";
+import Settings from "./settings";
+
+export default [
+  {
+    title: "Dashboard",
+    url: "/",
+    icon: (
+      <LayoutDashboardIcon />
+    ),
+    page: (
+      <p>Nothing yet</p>
+    ),
+  },
+  {
+    title: "Chat",
+    url: "/chat",
+    icon: (
+      <MessageCircleMore />
+    ),
+    page: (
+      <Chat />
+    ),
+    expandable: true,
+  },
+  {
+    title: "Evaluate",
+    url: "/eval",
+    icon: (
+      <ChartCandlestickIcon />
+    ),
+    page: (
+      <Evaluation />
+    ),
+  },
+  {
+    title: "Predictions",
+    url: "/predict",
+    icon: (
+      <ChartSplineIcon />
+    ),
+    page: (
+      <Predictions />
+    ),
+  },
+  {
+    title: "Learn",
+    url: "/learn",
+    icon: (
+      <GraduationCap />
+    ),
+    page: (
+        <Learn />
+    ),
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    hidenav: true,
+    icon: (
+      <Cog />
+    ),
+    page: (
+      <Settings />
+    )
+  },
+] satisfies NavElement[];
+````
+
+## File: src-tauri/src/migrations.rs
+````rust
+use tauri_plugin_sql::{Migration, MigrationKind};
+
+pub fn get_migrations() -> Vec<Migration> {
+    vec![
+        Migration {
+            version: 1,
+            description: "create_core_chat_tables",
+            sql: "
+                CREATE TABLE channels (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE conversations (
+                    id TEXT PRIMARY KEY,
+                    channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+                    title TEXT,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE messages (
+                    id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+                    role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
+                    content TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX idx_conversations_channel ON conversations(channel_id);
+                CREATE INDEX idx_messages_conversation ON messages(conversation_id);
+
+                INSERT INTO channels (id, name, created_at) VALUES ('general', 'General', unixepoch());
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "create_trained_models_table",
+            sql: "
+                CREATE TABLE trained_models (
+                    id TEXT PRIMARY KEY,
+                    model_name TEXT NOT NULL,
+                    tickers TEXT NOT NULL,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX idx_trained_models_created_at ON trained_models(created_at DESC);
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "create_app_settings_table",
+            sql: "
+                CREATE TABLE app_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at INTEGER NOT NULL
+                );
+            ",
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "create_learn_tables",
+            sql: "
+                CREATE TABLE guides (
+                    id TEXT PRIMARY KEY,
+                    topic TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    steps TEXT NOT NULL,
+                    key_takeaways TEXT NOT NULL,
+                    sources TEXT NOT NULL,
+                    grounded INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE flashcard_decks (
+                    id TEXT PRIMARY KEY,
+                    topic TEXT NOT NULL,
+                    cards TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE flashcard_progress (
+                    deck_id TEXT NOT NULL REFERENCES flashcard_decks(id) ON DELETE CASCADE,
+                    card_id TEXT NOT NULL,
+                    box_level INTEGER NOT NULL DEFAULT 0,
+                    due_at INTEGER NOT NULL DEFAULT 0,
+                    last_reviewed_at INTEGER,
+                    PRIMARY KEY (deck_id, card_id)
+                );
+
+                CREATE INDEX idx_guides_created ON guides(created_at DESC);
+                CREATE INDEX idx_flashcard_decks_created ON flashcard_decks(created_at DESC);
+                CREATE INDEX idx_flashcard_progress_due ON flashcard_progress(due_at);
+            ",
+            kind: MigrationKind::Up,
+        },
+    ]
+}
+````
+
 ## File: src/types.ts
 ````typescript
 import { ReactNode } from "react";
@@ -8391,6 +11728,71 @@ export type NavElement = {
   page: ReactNode;
   hidenav?: boolean;
   expandable?: boolean;
+}
+
+// prediction / quiz interfaces
+export interface Allocation {
+  ticker: string;
+  action: "BUY" | "SELL" | "HOLD";
+  price: number;
+  shares: number;
+  dollar_value: number;
+  pct_of_budget: number;
+  rsi: number;
+  macd_hist: number;
+  bb_pct: number;
+}
+
+export interface Evolution {
+  dates: string[];
+  rl_value: number[];
+  bh_value: number[];
+  rl_drawdown: number[];
+  bh_drawdown: number[];
+}
+
+export interface BacktestSummary {
+  rl_return_pct: number;
+  bh_return_pct: number;
+  sharpe: number;
+  max_drawdown_pct: number;
+  alpha_margin: number;
+}
+
+export interface PredictionResult {
+  budget: number;
+  cash_remaining: number;
+  eval_period: string;
+  backtest_summary: BacktestSummary;
+  allocations: Allocation[];
+  evolution: Evolution;
+}
+
+export interface QuizQuestion {
+  id: string;
+  type: "mcq" | "open";
+  question: string;
+  options?: string[];
+  context?: string;
+}
+
+export interface QuizReviewItem {
+  question_id: string;
+  correct?: boolean;
+  feedback: string;
+}
+
+export interface QuizReview {
+  reviews?: QuizReviewItem[];
+  overall_feedback?: string;
+  score?: number;
+  total?: number;
+  raw?: string;
+}
+
+export interface StatusState {
+  type: "info" | "success" | "error";
+  message: string;
 }
 
 // LLM providers
@@ -8531,267 +11933,13 @@ export interface FlashcardProgress {
 }
 ````
 
-## File: src/vite-env.d.ts
-````typescript
-/// <reference types="vite/client" />
-````
-
-## File: src-py/requirements.txt
-````
-absl-py==2.4.0
-ale-py==0.12.0
-altgraph==0.17.5
-annotated-doc==0.0.4
-annotated-types==0.7.0
-anyio==4.14.0
-backtrader==1.9.78.123
-beautifulsoup4==4.15.0
-certifi==2026.6.17
-cffi==2.0.0
-charset-normalizer==3.4.7
-click==8.4.1
-cloudpickle==3.1.2
-colorama==0.4.6
-contourpy==1.3.3
-curl_cffi==0.15.0
-cycler==0.12.1
-distro==1.9.0
-docstring_parser==0.18.0
-Farama-Notifications==0.0.6
-fastapi==0.137.2
-filelock==3.29.4
-fonttools==4.63.0
-fsspec==2026.6.0
-grpcio==1.81.1
-gymnasium==1.3.0
-h11==0.16.0
-httpcore==1.0.9
-httpx==0.28.1
-idna==3.18
-Jinja2==3.1.6
-jiter==0.15.0
-kiwisolver==1.5.0
-Markdown==3.10.2
-markdown-it-py==4.2.0
-MarkupSafe==3.0.3
-matplotlib==3.11.0
-mdurl==0.1.2
-mpmath==1.3.0
-multitasking==0.0.13
-networkx==3.6.1
-numpy==2.5.0
-ollama==0.6.2
-opencv-python==4.13.0.92
-packaging==26.2
-pandas==3.0.3
-peewee==4.1.0
-pefile==2024.8.26
-pillow==12.2.0
-platformdirs==4.10.0
-protobuf==7.35.1
-psutil==7.2.2
-pycparser==3.0
-pydantic==2.13.4
-pydantic_core==2.46.4
-pygame-ce==2.5.7
-Pygments==2.20.0
-pyinstaller==6.21.0
-pyinstaller-hooks-contrib==2026.6
-pyparsing==3.3.2
-python-dateutil==2.9.0.post0
-pytz==2026.2
-pywin32-ctypes==0.2.3
-requests==2.34.2
-rich==15.0.0
-setuptools==81.0.0
-six==1.17.0
-sniffio==1.3.1
-soupsieve==2.8.4
-stable_baselines3==2.9.0
-starlette==1.3.1
-sympy==1.14.0
-tensorboard==2.20.0
-tensorboard-data-server==0.7.2
-torch==2.12.1
-tqdm==4.68.3
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-tzdata==2026.2
-urllib3==2.7.0
-uvicorn==0.49.0
-websockets==16.0
-Werkzeug==3.1.8
-yfinance==1.4.1
-````
-
-## File: src-tauri/src/lib.rs
-````rust
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-````
-
-## File: src-tauri/src/migrations.rs
-````rust
-use tauri_plugin_sql::{Migration, MigrationKind};
-
-pub fn get_migrations() -> Vec<Migration> {
-    vec![
-        Migration {
-            version: 1,
-            description: "create_core_chat_tables",
-            sql: "
-                CREATE TABLE channels (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE TABLE conversations (
-                    id TEXT PRIMARY KEY,
-                    channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-                    title TEXT,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE TABLE messages (
-                    id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-                    role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
-                    content TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE INDEX idx_conversations_channel ON conversations(channel_id);
-                CREATE INDEX idx_messages_conversation ON messages(conversation_id);
-
-                INSERT INTO channels (id, name, created_at) VALUES ('general', 'General', unixepoch());
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 2,
-            description: "create_trained_models_table",
-            sql: "
-                CREATE TABLE trained_models (
-                    id TEXT PRIMARY KEY,
-                    model_name TEXT NOT NULL,
-                    tickers TEXT NOT NULL,
-                    start_date TEXT NOT NULL,
-                    end_date TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE INDEX idx_trained_models_created_at ON trained_models(created_at DESC);
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 3,
-            description: "create_app_settings_table",
-            sql: "
-                CREATE TABLE app_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at INTEGER NOT NULL
-                );
-            ",
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 4,
-            description: "create_learn_tables",
-            sql: "
-                CREATE TABLE guides (
-                    id TEXT PRIMARY KEY,
-                    topic TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    summary TEXT NOT NULL,
-                    steps TEXT NOT NULL,
-                    key_takeaways TEXT NOT NULL,
-                    sources TEXT NOT NULL,
-                    grounded INTEGER NOT NULL DEFAULT 0,
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                );
-
-                CREATE TABLE flashcard_decks (
-                    id TEXT PRIMARY KEY,
-                    topic TEXT NOT NULL,
-                    cards TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE TABLE flashcard_progress (
-                    deck_id TEXT NOT NULL REFERENCES flashcard_decks(id) ON DELETE CASCADE,
-                    card_id TEXT NOT NULL,
-                    box_level INTEGER NOT NULL DEFAULT 0,
-                    due_at INTEGER NOT NULL DEFAULT 0,
-                    last_reviewed_at INTEGER,
-                    PRIMARY KEY (deck_id, card_id)
-                );
-
-                CREATE INDEX idx_guides_created ON guides(created_at DESC);
-                CREATE INDEX idx_flashcard_decks_created ON flashcard_decks(created_at DESC);
-                CREATE INDEX idx_flashcard_progress_due ON flashcard_progress(due_at);
-            ",
-            kind: MigrationKind::Up,
-        },
-    ]
-}
-````
-
-## File: src-tauri/.gitignore
-````
-# Generated by Cargo
-# will have compiled files and executables
-/target/
-
-# Generated by Tauri
-# will have schema files for capabilities auto-completion
-/gen/schemas
-````
-
-## File: src-tauri/build.rs
-````rust
-fn main() {
-    tauri_build::build()
-}
-````
-
-## File: src/main.tsx
-````typescript
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App";
-
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
-);
-````
-
 ## File: src-py/llm/main.py
 ````python
 import json
 from typing import Any, Dict, List, Optional
 
 from config import OUTPUT_DIR
+from quiz.main import build_review_prompt
 from llm.providers import (
     DEFAULT_OLLAMA_MODEL,
     get_provider,
@@ -8945,6 +12093,26 @@ If asked for investment advice, explain that you can teach the concepts, interpr
 If information is missing or uncertain, say so instead of guessing.
 Your goal is to help users become informed and independent learners.
 """,
+    "QUIZ_REVIEW": """You are an assessment reviewer for a self-hosted financial education app.
+You will be given a quiz generated from a reinforcement-learning (RL) trading agent's output, the user's answers, and the correct answers.
+
+Review each answer:
+- For multiple-choice questions, mark the answer correct or incorrect against the supplied correct_answer.
+- For open-ended questions, assess whether the explanation is reasonable and grounded in the provided technical indicators.
+- Keep feedback concise and constructive. Do not provide financial advice.
+
+Return ONLY a valid JSON object (no markdown fences, no commentary) with exactly this schema:
+{
+  "reviews": [
+    {"question_id": "...", "correct": true, "feedback": "..."}
+  ],
+  "overall_feedback": "...",
+  "score": 0,
+  "total": 0
+}
+
+Scoring: award 1 point per correct multiple-choice answer and 0-2 points per open-ended answer based on quality. Set "total" to the maximum points available across all questions.
+""",
 }
 
 
@@ -9050,298 +12218,97 @@ def handle_chat_interaction(
         model=model,
         provider_id=provider_id,
     )
-````
 
-## File: src-py/build.bat
-````batch
-@echo off
-setlocal enabledelayedexpansion
-
-REM Always operate relative to this script's own location (src-py/)
-pushd "%~dp0"
-
-REM Create the venv if it doesn't exist yet
-if not exist ".venv\Scripts\activate.bat" (
-    echo Creating virtual environment...
-    python -m venv .venv
-    if errorlevel 1 (
-        echo Failed to create virtual environment.
-        popd
-        exit /b 1
+def review_quiz_answers(
+    questions: list[dict],
+    answers: list[dict],
+    model: Optional[str] = None,
+    provider_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Sends the quiz, correct answers, and the user's answers to the LLM for
+    review. Returns a parsed dict when the model responds with JSON, otherwise
+    falls back to the raw text under the `raw` key.
+    """
+    user_prompt = build_review_prompt(questions, answers)
+    raw = chat(
+        SYSTEM_PROMPTS["QUIZ_REVIEW"],
+        user_prompt,
+        model=model,
+        provider_id=provider_id,
+        temperature=0.2,
     )
-)
 
-REM Activate the venv
-call .venv\Scripts\activate.bat
-if errorlevel 1 (
-    echo Failed to activate virtual environment.
-    popd
-    exit /b 1
-)
-
-REM Install/update dependencies
-if exist "requirements.txt" (
-    pip install -r requirements.txt
-    if errorlevel 1 (
-        echo Failed to install dependencies.
-        call .venv\Scripts\deactivate.bat
-        popd
-        exit /b 1
-    )
-) else (
-    echo WARNING: requirements.txt not found, skipping dependency install.
-)
-
-REM Make sure pyinstaller itself is available
-pip show pyinstaller >nul 2>&1
-if errorlevel 1 (
-    echo Installing PyInstaller...
-    pip install pyinstaller
-)
-
-REM Verify that the spec file actually exists before building
-if not exist "app.spec" (
-    echo ERROR: app.spec not found! Please ensure your spec file is in this directory.
-    call .venv\Scripts\deactivate.bat
-    popd
-    exit /b 1
-)
-
-REM Build the Python executable using the spec file
-echo Building Python sidecar via PyInstaller spec file...
-pyinstaller --clean app.spec
-if errorlevel 1 (
-    echo PyInstaller build failed.
-    call .venv\Scripts\deactivate.bat
-    popd
-    exit /b 1
-)
-
-REM Detect the Rust target triple for this machine
-for /f "tokens=2" %%i in ('rustc -Vv ^| findstr "host:"') do set HOST_TRIPLE=%%i
-
-if "%HOST_TRIPLE%"=="" (
-    echo Could not detect Rust host triple. Is rustc installed and on PATH?
-    call .venv\Scripts\deactivate.bat
-    popd
-    exit /b 1
-)
-
-echo Detected target triple: %HOST_TRIPLE%
-
-REM Ensure the destination folder exists
-if not exist "..\src-tauri\binaries" mkdir "..\src-tauri\binaries"
-
-REM Copy the built executable with the required sidecar naming convention
-copy /Y "dist\app.exe" "..\src-tauri\binaries\app-%HOST_TRIPLE%.exe"
-if errorlevel 1 (
-    echo Failed to copy built executable.
-    call .venv\Scripts\deactivate.bat
-    popd
-    exit /b 1
-)
-
-timeout /t 3 /nobreak >nul
-
-echo Done. Sidecar binary placed at ..\src-tauri\binaries\app-%HOST_TRIPLE%.exe
-
-call .venv\Scripts\deactivate.bat
-popd
-endlocal
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"raw": raw}
 ````
 
-## File: src-tauri/capabilities/default.json
-````json
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "opener:default",
-    "shell:allow-execute",
-    { "identifier": "shell:allow-spawn", "allow": [{ "name": "binaries/app", "sidecar": true }] },
-    "sql:default",
-    "sql:allow-load",
-    "sql:allow-execute",
-    "sql:allow-select",
-    "sql:allow-close"
-  ]
-}
-````
+## File: src-tauri/src/main.rs
+````rust
+use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_sql::{Migration, MigrationKind};
 
-## File: src-tauri/tauri.conf.json
-````json
-{
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "financial-advisor-app",
-  "version": "0.1.0",
-  "identifier": "com.maxsc.financial-advisor-app",
-  "build": {
-    "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "bun run dev:frontend",
-    "beforeBuildCommand": "bun run build:sidecar && bun run build:frontend",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "financial-advisor-app",
-        "width": 800,
-        "height": 600
-      }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "externalBin": ["binaries/app"]
-  }
-}
-````
+mod migrations;
 
-## File: src/App.css
-````css
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-:root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-    }
-  body {
-    @apply bg-background text-foreground;
-    }
-  html {
-    @apply font-sans;
-    }
+fn main() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations("sqlite:app.db", migrations::get_migrations())
+                .build(),
+        )
+        .setup(|app| {
+            let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+            let data_dir_str = app_data_dir.to_str().unwrap();
+            #[cfg(dev)]
+            {
+                println!("\n=== DEVELOPMENT MODE ===");
+                println!("App Data Directory: {}", data_dir_str);
+                println!("Python sidecar skipped. Please start it manually:\n");
+                println!("1. cd src-py");
+                println!("2. .venv\\Scripts\\activate");
+                println!("3. python main.py --data-dir=\"{}\"\n", data_dir_str);
+                println!("========================\n");
+            }
+            #[cfg(not(dev))]
+            {
+                let sidecar = app
+                    .shell()
+                    .sidecar("app")
+                    .unwrap()
+                    .arg("--data-dir")
+                    .arg(data_dir_str);
+                let (mut rx, _child) = sidecar.spawn().expect("failed to spawn python sidecar");
+                tauri::async_runtime::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            CommandEvent::Stdout(line) => {
+                                println!("[python out] {}", String::from_utf8_lossy(&line));
+                            }
+                            CommandEvent::Stderr(line) => {
+                                eprintln!("[python err] {}", String::from_utf8_lossy(&line));
+                            }
+                            CommandEvent::Terminated(payload) => {
+                                println!(
+                                    "[python sidecar] Exited unexpectedly with code: {:?}",
+                                    payload.code
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                });
+            }
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
 ````
 
@@ -9497,308 +12464,6 @@ export default function Chat() {
 }
 ````
 
-## File: src-tauri/Cargo.toml
-````toml
-[package]
-name = "financial-advisor-app"
-version = "0.1.0"
-description = "A Financial advisor that teaches you trading stocks"
-authors = ["Max Screawn"]
-edition = "2024"
-build = "build.rs"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "financial_advisor_app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
-
-[build-dependencies]
-tauri-build = { version = "2", features = [] }
-
-[dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tauri-plugin-shell = "2.3.5"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-````
-
-## File: src-py/rl_pipeline/main.py
-````python
-import json
-from pathlib import Path
-import numpy as np
-from stable_baselines3 import PPO
-from dataclasses import dataclass
-
-from rl_pipeline.data import download_market_data
-from rl_pipeline.environment import TradingEnv
-from rl_pipeline.rl_agent import train_ppo_agent
-from rl_pipeline.backtest import run_backtest_suite
-
-from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
-
-@dataclass
-class Allocation:
-    ticker: str; action: str; price: float; shares: float
-    dollar_value: float; pct_of_budget: float
-    rsi: float; macd_hist: float; bb_pct: float
-
-@dataclass
-class JsonRecommendation:
-    budget: int;
-    cash_remaining: int;
-    eval_period: str;
-    backtest_summary: dict;
-    allocations: list[Allocation];
-
-def _calculate_allocations(model, eval_data: dict, tickers: list, budget: float) -> list[Allocation]:
-    """
-    Internal helper: Generates execution signals for the final evaluation timestamp.
-    """
-    env = TradingEnv(eval_data, budget=budget)
-    env._i = len(env.dates) - 1
-    action, _ = model.predict(env._obs(), deterministic=True)
-
-    allocations = []
-
-    for i, ticker in enumerate(tickers):
-        a = float(action[i])
-        latest = eval_data[ticker].iloc[-1]
-        price = float(latest["Close"])
-
-        if a > 0.05:
-            weight = min(a, MAX_WEIGHT)
-            dollars = budget * weight
-            shares = dollars / price
-            act = "BUY"
-
-        elif a < -0.05:
-            weight = dollars = shares = 0.0; act = "SELL"
-
-        else:
-            weight = dollars = shares = 0.0; act = "HOLD"
-
-        allocations.append(Allocation(
-            ticker=ticker, action=act, price=round(price, 2), shares=round(shares, 4),
-            dollar_value=round(dollars, 2), pct_of_budget=round(weight * 100, 1),
-            rsi=round(float(latest["rsi"]), 1), macd_hist=round(float(latest["macd_hist"]), 4),
-            bb_pct=round(float(latest["bb_pct"]), 3)
-        ))
-
-    allocations.sort(key=lambda x: -x.dollar_value)
-    return allocations
-
-
-def train_model(
-    tickers: list = TICKERS,
-    train_start: str = TRAIN_START,
-    train_end: str = TRAIN_END,
-    model_name: str = "ppo_trading_model"
-):
-    """
-    Downloads training data, trains the RL model, and saves it to disk.
-    """
-    # print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
-
-    train_raw = download_market_data(tickers, train_start, train_end)
-
-    valid_tickers = [t for t in tickers if t in train_raw]
-    train_data = {t: train_raw[t] for t in valid_tickers}
-
-    if len(valid_tickers) < 1 or len(train_data.keys()) < 1:
-        raise ValueError(
-            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "
-            "Please select a wider date range or check network/yfinance connectivity."
-        )
-
-    # print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
-    model = train_ppo_agent(train_data)
-
-    # Store and make accessible all trained models
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    model_path = OUTPUT_DIR / model_name
-
-    # Assuming the model has a standard save method (like Stable Baselines 3)
-    if hasattr(model, "save"):
-        model.save(str(model_path))
-        # print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
-
-    return model, valid_tickers
-
-def generate_recommendations(
-    model,
-    valid_tickers: list,
-    eval_start: str = EVAL_START,
-    eval_end: str = EVAL_END,
-    budget: float = BUDGET,
-    output_filename: str = "recommendations.json"
-) -> tuple[Path, dict]:
-    """
-    Evaluates the model, generates allocations, formats the payload,
-    saves to JSON, and returns the absolute path of the JSON file.
-    """
-    # print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
-
-    eval_raw = download_market_data(valid_tickers, eval_start, eval_end)
-    eval_data = {t: eval_raw[t] for t in valid_tickers if t in eval_raw}
-
-    # Run Backtest
-    env_eval = TradingEnv(eval_data, budget=budget)
-    eval_feat = {t: eval_data[t].loc[env_eval.dates, FEATURE_COLS].values.astype(np.float32) for t in valid_tickers}
-    eval_closes = {t: eval_data[t].loc[env_eval.dates, "Close"].values.astype(np.float32) for t in valid_tickers}
-
-    metrics = run_backtest_suite(model, eval_data, valid_tickers, eval_feat, eval_closes)
-
-    # Generate Allocations
-    allocations = _calculate_allocations(model, eval_data, valid_tickers, budget)
-    total_out = sum(a.dollar_value for a in allocations)
-    alpha_margin = metrics['rl_return_pct'] - metrics['bh_return_pct']
-
-    # Print Performance Metrics
-    # print("\n" + ("=" * 60))
-    # print("  Performance Results")
-    # print(("=" * 60) + "\n")
-    # print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
-    # print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
-    # print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
-    # print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
-
-    # LLM Payload
-    payload = {
-        "budget": budget,
-        "cash_remaining": round(budget - total_out, 2),
-        "eval_period": f"{eval_start} -> {eval_end}",
-        "backtest_summary": {
-            "rl_return_pct": round(metrics['rl_return_pct'], 2),
-            "bh_return_pct": round(metrics['bh_return_pct'], 2),
-            "sharpe": round(metrics['sharpe'], 3),
-            "max_drawdown_pct": round(metrics['max_drawdown'], 2),
-            "alpha_margin": round(alpha_margin, 2),
-        },
-        "allocations": [a.__dict__ for a in allocations]
-    }
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    payload_path = OUTPUT_DIR / output_filename
-
-    with open(payload_path, "w") as f:
-        json.dump(payload, f, indent=2)
-
-    # print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
-
-    return payload_path.resolve(), payload
-
-def load_trained_model(model_name: str = "ppo_trading_model"):
-    """
-    Helper to load a previously trained model from the OUTPUT_DIR.
-    """
-    model_path = OUTPUT_DIR / model_name
-    # Uncomment and use your specific library's load function
-    return PPO.load(str(model_path))
-
-def main():
-    """
-    Example usage of the new refactored pipeline.
-    """
-    # print("\n" + ("=" * 60))
-    # print("  RL Stock Investment Agent Pipeline")
-    # print(("=" * 60) + "\n")
-
-    trained_model, valid_tickers = train_model(
-        tickers=TICKERS,
-        train_start=TRAIN_START,
-        train_end=TRAIN_END,
-        model_name="ppo_trading_model"
-    )
-
-    json_path = generate_recommendations(
-        model=trained_model,
-        valid_tickers=valid_tickers,
-        eval_start=EVAL_START,
-        eval_end=EVAL_END,
-        budget=BUDGET,
-        output_filename="recommendations.json"
-    )
-
-    # print(f"Pipeline complete. Application can now read from: {json_path}")
-
-if __name__ == "__main__":
-    main()
-````
-
-## File: src-tauri/src/main.rs
-````rust
-use tauri::Manager;
-use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::CommandEvent;
-use tauri_plugin_sql::{Migration, MigrationKind};
-
-mod migrations;
-
-fn main() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .plugin(
-            tauri_plugin_sql::Builder::default()
-                .add_migrations("sqlite:app.db", migrations::get_migrations())
-                .build(),
-        )
-        .setup(|app| {
-            let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-            std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
-            let data_dir_str = app_data_dir.to_str().unwrap();
-            #[cfg(dev)]
-            {
-                println!("\n=== DEVELOPMENT MODE ===");
-                println!("App Data Directory: {}", data_dir_str);
-                println!("Python sidecar skipped. Please start it manually:\n");
-                println!("1. cd src-py");
-                println!("2. .venv\\Scripts\\activate");
-                println!("3. python main.py --data-dir=\"{}\"\n", data_dir_str);
-                println!("========================\n");
-            }
-            #[cfg(not(dev))]
-            {
-                let sidecar = app
-                    .shell()
-                    .sidecar("app")
-                    .unwrap()
-                    .arg("--data-dir")
-                    .arg(data_dir_str);
-                let (mut rx, _child) = sidecar.spawn().expect("failed to spawn python sidecar");
-                tauri::async_runtime::spawn(async move {
-                    while let Some(event) = rx.recv().await {
-                        match event {
-                            CommandEvent::Stdout(line) => {
-                                println!("[python out] {}", String::from_utf8_lossy(&line));
-                            }
-                            CommandEvent::Stderr(line) => {
-                                eprintln!("[python err] {}", String::from_utf8_lossy(&line));
-                            }
-                            CommandEvent::Terminated(payload) => {
-                                println!(
-                                    "[python sidecar] Exited unexpectedly with code: {:?}",
-                                    payload.code
-                                );
-                            }
-                            _ => {}
-                        }
-                    }
-                });
-            }
-            Ok(())
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
-````
-
 ## File: src/App.tsx
 ````typescript
 import { Routes, Route } from "react-router-dom";
@@ -9849,13 +12514,220 @@ export default function App() {
 }
 ````
 
+## File: src-py/rl_pipeline/main.py
+````python
+import json
+from pathlib import Path
+import numpy as np
+from stable_baselines3 import PPO
+from dataclasses import dataclass
+from typing_extensions import Any
+
+from rl_pipeline.data import download_market_data
+from rl_pipeline.environment import TradingEnv
+from rl_pipeline.rl_agent import train_ppo_agent
+from rl_pipeline.backtest import run_backtest_suite, build_evolution_curves
+
+from config import TICKERS, BUDGET, TRAIN_START, TRAIN_END, EVAL_START, EVAL_END, FEATURE_COLS, MAX_WEIGHT, OUTPUT_DIR, bcolors
+
+@dataclass
+class Allocation:
+    ticker: str; action: str; price: float; shares: float
+    dollar_value: float; pct_of_budget: float
+    rsi: float; macd_hist: float; bb_pct: float
+
+@dataclass
+class JsonRecommendation:
+    budget: int;
+    cash_remaining: int;
+    eval_period: str;
+    backtest_summary: dict[str, str | float | int];
+    allocations: list[Allocation];
+
+def _calculate_allocations(model, eval_data: dict, tickers: list[str], budget: float) -> list[Allocation]:
+    """
+    Internal helper: Generates execution signals for the final evaluation timestamp.
+    """
+    env = TradingEnv(eval_data, budget=budget)
+    env._i = len(env.dates) - 1
+    action, _ = model.predict(env._obs(), deterministic=True)
+
+    allocations = []
+
+    for i, ticker in enumerate(tickers):
+        a = float(action[i])
+        latest = eval_data[ticker].iloc[-1]
+        price = float(latest["Close"])
+
+        if a > 0.05:
+            weight = min(a, MAX_WEIGHT)
+            dollars = budget * weight
+            shares = dollars / price
+            act = "BUY"
+
+        elif a < -0.05:
+            weight = dollars = shares = 0.0; act = "SELL"
+
+        else:
+            weight = dollars = shares = 0.0; act = "HOLD"
+
+        allocations.append(Allocation(
+            ticker=ticker, action=act, price=round(price, 2), shares=round(shares, 4),
+            dollar_value=round(dollars, 2), pct_of_budget=round(weight * 100, 1),
+            rsi=round(float(latest["rsi"]), 1), macd_hist=round(float(latest["macd_hist"]), 4),
+            bb_pct=round(float(latest["bb_pct"]), 3)
+        ))
+
+    allocations.sort(key=lambda x: -x.dollar_value)
+    return allocations
+
+
+def train_model(
+    tickers: list[str] = TICKERS,
+    train_start: str = TRAIN_START,
+    train_end: str = TRAIN_END,
+    model_name: str = "ppo_trading_model"
+):
+    """
+    Downloads training data, trains the RL model, and saves it to disk.
+    """
+    # print(f"\n[{bcolors.OKBLUE}Train{bcolors.ENDC}] Downloading market data: {train_start} -> {train_end}")
+
+    train_raw = download_market_data(tickers, train_start, train_end)
+
+    valid_tickers = [t for t in tickers if t in train_raw]
+    train_data = {t: train_raw[t] for t in valid_tickers}
+
+    if len(valid_tickers) < 1 or len(train_data.keys()) < 1:
+        raise ValueError(
+            f"No market data found for tickers {tickers} between {train_start} and {train_end}. "+
+            "Please select a wider date range or check network/yfinance connectivity."
+        )
+
+    # print(f"[{bcolors.OKBLUE}Train{bcolors.ENDC}] Training PPO agent...")
+    model = train_ppo_agent(train_data)
+
+    # Store and make accessible all trained models
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    model_path = OUTPUT_DIR / model_name
+
+    # Assuming the model has a standard save method (like Stable Baselines 3)
+    if hasattr(model, "save"):
+        model.save(str(model_path))
+        # print(f"[{bcolors.OKGREEN}Train{bcolors.ENDC}] Model saved to -> {model_path}.zip")
+
+    return model, valid_tickers
+
+def generate_recommendations(
+    model,
+    valid_tickers: list[str],
+    eval_start: str = EVAL_START,
+    eval_end: str = EVAL_END,
+    budget: float = BUDGET,
+    output_filename: str = "recommendations.json"
+) -> tuple[Path, dict[str, Any]]:
+    """
+    Evaluates the model, generates allocations, formats the payload,
+    saves to JSON, and returns the absolute path of the JSON file.
+    """
+    # print(f"\n[{bcolors.OKBLUE}Eval{bcolors.ENDC}] Downloading eval data: {eval_start} -> {eval_end}")
+
+    eval_raw = download_market_data(valid_tickers, eval_start, eval_end)
+    eval_data = {t: eval_raw[t] for t in valid_tickers if t in eval_raw}
+
+    # Run Backtest
+    env_eval = TradingEnv(eval_data, budget=budget)
+    eval_feat = {t: eval_data[t].loc[env_eval.dates, FEATURE_COLS].values.astype(np.float32) for t in valid_tickers}
+    eval_closes = {t: eval_data[t].loc[env_eval.dates, "Close"].values.astype(np.float32) for t in valid_tickers}
+
+    metrics = run_backtest_suite(model, eval_data, valid_tickers, eval_feat, eval_closes)
+
+    # Generate Allocations
+    allocations = _calculate_allocations(model, eval_data, valid_tickers, budget)
+    total_out = sum(a.dollar_value for a in allocations)
+    alpha_margin = metrics['rl_return_pct'] - metrics['bh_return_pct']
+
+    # Print Performance Metrics
+    # print("\n" + ("=" * 60))
+    # print("  Performance Results")
+    # print(("=" * 60) + "\n")
+    # print(f"  RL Model Return    : {metrics['rl_return_pct']:>+7.2f} %  (${metrics['rl_end_val']:>9,.2f})")
+    # print(f"  Benchmark B&H      : {metrics['bh_return_pct']:>+7.2f} %  (${metrics['bh_end_val']:>9,.2f})")
+    # print(f"  Alpha Margin       : {alpha_margin:>+7.2f} %")
+    # print(f"  Sharpe Ratio       : {metrics['sharpe']:>7.3f}")
+
+    evolution = build_evolution_curves(metrics["tr_rl"], metrics["tr_bh"], budget)
+
+    # LLM Payload
+    payload = {
+        "budget": budget,
+        "cash_remaining": round(budget - total_out, 2),
+        "eval_period": f"{eval_start} -> {eval_end}",
+        "backtest_summary": {
+            "rl_return_pct": round(metrics['rl_return_pct'], 2),
+            "bh_return_pct": round(metrics['bh_return_pct'], 2),
+            "sharpe": round(metrics['sharpe'], 3),
+            "max_drawdown_pct": round(metrics['max_drawdown'], 2),
+            "alpha_margin": round(alpha_margin, 2),
+        },
+        "allocations": [a.__dict__ for a in allocations],
+        "evolution": evolution
+    }
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    payload_path = OUTPUT_DIR / output_filename
+
+    with open(payload_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+    # print(f"\n  [{bcolors.OKGREEN}Main{bcolors.ENDC}] LLM Engine Context payload metadata dumped -> {payload_path}\n")
+
+    return payload_path.resolve(), payload
+
+def load_trained_model(model_name: str = "ppo_trading_model"):
+    """
+    Helper to load a previously trained model from the OUTPUT_DIR.
+    """
+    model_path = OUTPUT_DIR / model_name
+    # Uncomment and use your specific library's load function
+    return PPO.load(str(model_path))
+
+def main():
+    """
+    Example usage of the new refactored pipeline.
+    """
+    print("\n" + ("=" * 60))
+    print("  RL Stock Investment Agent Pipeline")
+    print(("=" * 60) + "\n")
+
+    trained_model, valid_tickers = train_model(
+        tickers=TICKERS,
+        train_start=TRAIN_START,
+        train_end=TRAIN_END,
+        model_name="ppo_trading_model"
+    )
+
+    json_path = generate_recommendations(
+        model=trained_model,
+        valid_tickers=valid_tickers,
+        eval_start=EVAL_START,
+        eval_end=EVAL_END,
+        budget=BUDGET,
+        output_filename="recommendations.json"
+    )
+
+    print(f"Pipeline complete. Application can now read from: {json_path}")
+
+if __name__ == "__main__":
+    main()
+````
+
 ## File: src-py/main.py
 ````python
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import traceback
-
 import requests
 
 from llm.main import (
@@ -9864,11 +12736,13 @@ from llm.main import (
     handle_chat_interaction,
     initialize_ollama,
     list_models,
+    review_quiz_answers,
     set_active,
 )
 from llm.learn import generate_flashcards, generate_guide
 from llm.providers import get_provider, list_providers
 from rl_pipeline.main import train_model, load_trained_model, generate_recommendations
+from quiz.main import generate_quiz, strip_correct_answers
 from config import TICKERS
 
 app = FastAPI()
@@ -9938,7 +12812,16 @@ class EvaluateResponse(BaseModel):
     json_path: str
     data: dict
 
-# ToDo: integrate into a new page for handlign recommendations
+class QuizAnswer(BaseModel):
+    question_id: str
+    answer: str = ""
+
+class QuizReviewRequest(BaseModel):
+    answers: list[QuizAnswer]
+    # Optional per-request overrides (fall back to the active provider/model).
+    provider: str | None = None
+    model: str | None = None
+
 def generate_recommendation() -> str:
     data = generate_explanation("recommendations.json")
 
@@ -10062,6 +12945,43 @@ def api_train_model(req: TrainRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+@app.get("/quiz/generate")
+def api_generate_quiz():
+    """Builds a data-grounded quiz from the latest recommendations.json."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"status": "success", "questions": strip_correct_answers(questions)}
+
+
+@app.post("/quiz/review")
+def api_review_quiz(req: QuizReviewRequest):
+    """Reviews the user's quiz answers against the RL agent's output via the LLM."""
+    try:
+        questions = generate_quiz()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    try:
+        review = review_quiz_answers(
+            questions,
+            [a.model_dump() for a in req.answers],
+            model=req.model,
+            provider_id=req.provider,
+        )
+    except ValueError as e:  # provider/model not usable
+        raise HTTPException(status_code=400, detail=str(e))
+    except (requests.exceptions.RequestException, RuntimeError) as e:
+        raise HTTPException(status_code=503, detail=f"LLM backend unreachable: {e}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Quiz review failed: {str(e)}")
+
+    return {"status": "success", "review": review}
+
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 def api_evaluate_model(req: EvaluateRequest):
